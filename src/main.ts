@@ -32,6 +32,7 @@ function ms(label: string, fn: () => void): string {
 
 app.innerHTML = `
   <main class="lab-shell">
+    <a class="skip-link" href="#exhibit-1">Skip to exhibits</a>
     <header class="vault-hero reveal">
       <p class="verse">"Whether therefore ye eat, or drink, or whatsoever ye do, do all to the glory of God."<br />1 Corinthians 10:31</p>
       <h1>crypto-lab-curve448</h1>
@@ -67,8 +68,8 @@ Binary shape:
     <section class="panel reveal" style="--stagger: 2" id="exhibit-2">
       <h2>Exhibit 2: X448 Diffie-Hellman Live</h2>
       <div class="actions">
-        <button id="btn-handshake">Run Handshake</button>
-        <button id="btn-compare">Compare Shared Secrets</button>
+        <button type="button" id="btn-handshake">Run Handshake</button>
+        <button type="button" id="btn-compare">Compare Shared Secrets</button>
       </div>
       <div class="grid two">
         <article class="card alice">
@@ -84,7 +85,7 @@ Binary shape:
           <p>Shared b·A: <span id="bob-shared" class="mono"></span></p>
         </article>
       </div>
-      <p id="dh-status" class="status"></p>
+      <p id="dh-status" class="status" role="status" aria-live="polite"></p>
       <article class="card scenario">
         <h3>Surveillance Scenario</h3>
         <p>Eve sees only A and B. Recovering (ab)·G from public points requires solving ECDLP at roughly 2^224 work on Curve448.</p>
@@ -96,22 +97,22 @@ Binary shape:
       <div class="grid two">
         <article class="card">
           <label for="ed-message">Message</label>
-          <input id="ed-message" value="Paul Clark certified" />
+          <input id="ed-message" value="Paul Clark certified" autocomplete="off" />
           <label for="ed-context">Context (optional)</label>
-          <input id="ed-context" value="" placeholder="e.g. tls-handshake" />
+          <input id="ed-context" value="" placeholder="e.g. tls-handshake" autocomplete="off" />
           <div class="actions inline">
-            <button id="btn-ed-keygen">Generate Keypair</button>
-            <button id="btn-ed-sign">Sign</button>
-            <button id="btn-ed-verify">Verify</button>
-            <button id="btn-ed-tamper-msg">Tamper Message</button>
-            <button id="btn-ed-tamper-sig">Tamper Signature</button>
+            <button type="button" id="btn-ed-keygen">Generate Keypair</button>
+            <button type="button" id="btn-ed-sign">Sign</button>
+            <button type="button" id="btn-ed-verify">Verify</button>
+            <button type="button" id="btn-ed-tamper-msg">Tamper Message</button>
+            <button type="button" id="btn-ed-tamper-sig">Tamper Signature</button>
           </div>
         </article>
         <article class="card">
           <p>Private seed: <span id="ed-priv" class="secret"></span></p>
           <p>Public key: <span id="ed-pub" class="mono"></span></p>
           <p>Signature: <span id="ed-sig" class="mono"></span></p>
-          <p id="ed-status" class="status"></p>
+          <p id="ed-status" class="status" role="status" aria-live="polite"></p>
         </article>
       </div>
       <article class="card">
@@ -122,9 +123,10 @@ Binary shape:
 
     <section class="panel reveal" style="--stagger: 4" id="exhibit-4">
       <h2>Exhibit 4: Curve25519 vs Curve448</h2>
-      <div class="actions"><button id="btn-compare-curves">Generate Live Comparison</button></div>
+      <div class="actions"><button type="button" id="btn-compare-curves">Generate Live Comparison</button></div>
       <div class="table-wrap">
         <table>
+          <caption class="sr-only">Live side-by-side key, signature, and performance comparison</caption>
           <thead>
             <tr><th>Metric</th><th>Curve25519 / Ed25519</th><th>Curve448 / Ed448</th></tr>
           </thead>
@@ -282,6 +284,8 @@ function compareCurves(): void {
   const ed448Kp = generateEd448KeyPair();
   const ed448Sig = signEd448(encoder.encode('compare'), ed448Kp.privateKey);
 
+  const perfMessage = encoder.encode('timing');
+
   const perfLeft = [
     ms('Keygen', () => {
       x25519.keygen();
@@ -290,10 +294,10 @@ function compareCurves(): void {
       x25519.getSharedSecret(x25519Alice.secretKey, x25519Bob.publicKey);
     }),
     ms('Sign', () => {
-      ed25519.sign(encoder.encode('timing'), ed25519Seed);
+      ed25519.sign(perfMessage, ed25519Seed);
     }),
     ms('Verify', () => {
-      ed25519.verify(ed25519Sig, encoder.encode('timing'), ed25519Public);
+      ed25519.verify(ed25519Sig, encoder.encode('compare'), ed25519Public);
     }),
   ].join(' | ');
 
@@ -305,10 +309,10 @@ function compareCurves(): void {
       computeSharedSecret(x448Alice.privateKey, x448Bob.publicKey);
     }),
     ms('Sign', () => {
-      signEd448(encoder.encode('timing'), ed448Kp.privateKey);
+      signEd448(perfMessage, ed448Kp.privateKey);
     }),
     ms('Verify', () => {
-      verifyEd448(ed448Sig, encoder.encode('timing'), ed448Kp.publicKey);
+      verifyEd448(ed448Sig, encoder.encode('compare'), ed448Kp.publicKey);
     }),
   ].join(' | ');
 
@@ -329,7 +333,7 @@ function compareCurves(): void {
   body.innerHTML = rows
     .map(
       ([metric, left, right]) =>
-        `<tr><td>${metric}</td><td class="mono">${left}</td><td class="mono">${right}</td></tr>`,
+        `<tr><td data-label="Metric">${metric}</td><td class="mono" data-label="Curve25519 / Ed25519">${left}</td><td class="mono" data-label="Curve448 / Ed448">${right}</td></tr>`,
     )
     .join('');
 }
