@@ -34,6 +34,15 @@ describe('ed448', () => {
     expect(verify(sig, tamperedMsg, kp.publicKey)).toBe(false);
   });
 
+  it('round-trips random messages', () => {
+    const kp = generateKeyPair();
+    for (let i = 1; i <= 5; i += 1) {
+      const msg = crypto.getRandomValues(new Uint8Array(i * 17));
+      const sig = sign(msg, kp.privateKey);
+      expect(verify(sig, msg, kp.publicKey)).toBe(true);
+    }
+  });
+
   it('passes RFC 8032 section 7.4 1-octet test vector', () => {
     const privateKey = hexToBytes(
       'c4eab05d357007c632f3dbb48489924d552b08fe0c353a0d4a1f00acda2c463a'
