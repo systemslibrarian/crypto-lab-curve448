@@ -18,6 +18,17 @@ Browser-based demo of Curve448 (X448 key exchange) and Ed448 (digital signatures
 
 https://systemslibrarian.github.io/crypto-lab-curve448/
 
+Six interactive exhibits: the security-margin rationale, a live X448 Diffie-Hellman handshake (with a toggle that reveals RFC 7748 scalar clamping), Ed448 sign / verify / tamper with optional context separation, a live Curve25519-vs-Curve448 comparison with averaged in-browser benchmarks, and a "Verified Against the RFCs" panel that recomputes the RFC 7748 §5.2 and RFC 8032 §7.4 test vectors in your browser on every load. Light and dark themes are both fully supported.
+
+## Development
+
+```bash
+npm install      # install dependencies
+npm run dev      # start the Vite dev server
+npm test         # run the Vitest suite (crypto vectors + DOM smoke tests)
+npm run build    # type-check and produce the production bundle in dist/
+```
+
 ## What Can Go Wrong
 
 - Curve448 is still vulnerable to Shor's algorithm on a sufficiently large quantum computer, just like Curve25519. This is classical security, not post-quantum security.

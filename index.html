@@ -4,11 +4,44 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Curve448 Lab — X448 key exchange &amp; Ed448 signatures</title>
+    <meta
+      name="description"
+      content="Interactive browser demo of Curve448: live X448 Diffie-Hellman key exchange and Ed448 signatures (RFC 7748 / RFC 8032), with a Curve25519 comparison and in-browser RFC test-vector verification."
+    />
+    <meta name="author" content="Paul Clark" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#0b0e17" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f1fb" media="(prefers-color-scheme: light)" />
+
+    <!-- Open Graph / social cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Curve448 Lab — X448 &amp; Ed448" />
+    <meta
+      property="og:description"
+      content="The 224-bit security tier: live X448 key exchange + Ed448 signatures, verified against the RFCs in your browser."
+    />
+    <meta property="og:url" content="https://systemslibrarian.github.io/crypto-lab-curve448/" />
+    <meta name="twitter:card" content="summary" />
+
     <script>
-      const saved = localStorage.getItem('theme');
-      document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+      // Apply the saved theme before first paint to avoid a flash. Falls back to
+      // the OS preference, then dark.
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersLight =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+          document.documentElement.setAttribute(
+            'data-theme',
+            saved || (prefersLight ? 'light' : 'dark'),
+          );
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
     </script>
-    <title>crypto-lab-curve448</title>
   </head>
   <body>
 <!-- BEGIN crypto-lab shared header — managed; edit shared-header.html + re-run reapply-header.py
