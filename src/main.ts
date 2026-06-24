@@ -24,6 +24,23 @@ function maskHex(bytes: Uint8Array): string {
   return '█'.repeat(Math.min(14, Math.ceil(bytes.length / 4)));
 }
 
+/**
+ * Render a private value into `el`. When hidden, the block glyphs are marked
+ * decorative and an accessible label is supplied so screen readers announce the
+ * state instead of reading "black square" repeatedly.
+ */
+function setSecret(el: HTMLElement, bytes: Uint8Array, revealed: boolean, noun: string): void {
+  if (revealed) {
+    el.textContent = bytesToHex(bytes);
+    el.removeAttribute('aria-label');
+    el.removeAttribute('role');
+  } else {
+    el.textContent = maskHex(bytes);
+    el.setAttribute('role', 'img');
+    el.setAttribute('aria-label', `${noun} hidden — use the reveal button to show it`);
+  }
+}
+
 /** Average wall-clock time of `fn` over several runs so the numbers stay stable. */
 function bench(label: string, fn: () => void, iterations = 12): string {
   fn(); // warm up JIT and any one-time setup
@@ -223,12 +240,8 @@ function renderHandshake(): void {
 
   if (!alicePriv || !alicePub || !aliceShared || !bobPriv || !bobPub || !bobShared || !status) return;
 
-  alicePriv.textContent = revealDhPrivate
-    ? bytesToHex(latestHandshake.alice.privateKey)
-    : maskHex(latestHandshake.alice.privateKey);
-  bobPriv.textContent = revealDhPrivate
-    ? bytesToHex(latestHandshake.bob.privateKey)
-    : maskHex(latestHandshake.bob.privateKey);
+  setSecret(alicePriv, latestHandshake.alice.privateKey, revealDhPrivate, "Alice's private scalar");
+  setSecret(bobPriv, latestHandshake.bob.privateKey, revealDhPrivate, "Bob's private scalar");
   alicePub.textContent = shortHex(latestHandshake.alice.publicKey);
   bobPub.textContent = shortHex(latestHandshake.bob.publicKey);
   aliceShared.textContent = shortHex(latestHandshake.aliceComputedShared);
@@ -307,7 +320,7 @@ function renderEdState(statusText = 'Ready', ok = true): void {
   if (!priv || !pub || !sig || !status) return;
 
   const hasSig = latestSignature.length > 0;
-  priv.textContent = revealEdPrivate ? bytesToHex(edState.privateKey) : maskHex(edState.privateKey);
+  setSecret(priv, edState.privateKey, revealEdPrivate, 'Ed448 private seed');
   pub.textContent = shortHex(edState.publicKey);
   sig.textContent = hasSig ? shortHex(latestSignature, 20) : '(no signature yet)';
   status.textContent = statusText;
