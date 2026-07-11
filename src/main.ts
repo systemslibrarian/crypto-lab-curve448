@@ -193,10 +193,10 @@ Binary shape:
       <p class="cross-links">Cross-links: curve-lens, x3dh-wire, ed25519-forge, ratchet-wire, hybrid-wire, quantum-vault-kpqc, dilithium-seal.</p>
     </section>
   </main>
-<footer style="margin-top:3rem;padding:2rem 1rem;border-top:1px solid rgba(128,128,128,.25);text-align:center;font-size:.85rem;line-height:1.9;opacity:.85;font-family:ui-monospace,Menlo,Consolas,monospace">
-  <div><strong>Related demos:</strong> <a href="https://systemslibrarian.github.io/crypto-lab-curve-lens/" style="color:#35d6bb">curve-lens</a> &middot; <a href="https://systemslibrarian.github.io/crypto-lab-ed25519-forge/" style="color:#35d6bb">ed25519-forge</a> &middot; <a href="https://systemslibrarian.github.io/crypto-lab-key-exchange/" style="color:#35d6bb">key-exchange</a> &middot; <a href="https://systemslibrarian.github.io/crypto-lab-ssh-handshake/" style="color:#35d6bb">ssh-handshake</a></div>
-  <div style="margin-top:.5rem"><a href="https://github.com/systemslibrarian/crypto-lab-curve448" style="color:#35d6bb">Source on GitHub</a> &middot; <a href="https://crypto-lab.systemslibrarian.dev/" style="color:#35d6bb">More crypto-lab demos</a></div>
-  <div style="margin-top:.75rem;opacity:.75">&ldquo;So whether you eat or drink or whatever you do, do it all for the glory of God.&rdquo; &mdash; 1 Corinthians 10:31</div>
+<footer style="margin-top:3rem;padding:2rem 1rem;border-top:1px solid rgba(128,128,128,.25);text-align:center;font-size:.85rem;line-height:1.9;font-family:ui-monospace,Menlo,Consolas,monospace">
+  <div><strong>Related demos:</strong> <a href="https://systemslibrarian.github.io/crypto-lab-curve-lens/">curve-lens</a> &middot; <a href="https://systemslibrarian.github.io/crypto-lab-ed25519-forge/">ed25519-forge</a> &middot; <a href="https://systemslibrarian.github.io/crypto-lab-key-exchange/">key-exchange</a> &middot; <a href="https://systemslibrarian.github.io/crypto-lab-ssh-handshake/">ssh-handshake</a></div>
+  <div style="margin-top:.5rem"><a href="https://github.com/systemslibrarian/crypto-lab-curve448">Source on GitHub</a> &middot; <a href="https://crypto-lab.systemslibrarian.dev/">More crypto-lab demos</a></div>
+  <div style="margin-top:.75rem;color:var(--muted)">&ldquo;So whether you eat or drink or whatever you do, do it all for the glory of God.&rdquo; &mdash; 1 Corinthians 10:31</div>
 </footer>
 `;
 

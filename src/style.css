@@ -19,7 +19,11 @@
   --muted: #a4b0c6;
   --heading: #ffffff;
   --verse: #d6d6f3;
+  --link: #35d6bb;
 
+  /* Solid canvas color behind the --bg gradients (matches their final stop).
+     Painted on <html> so automated contrast checks see a real color. */
+  --canvas: #0b0e17;
   --bg:
     radial-gradient(circle at 12% 15%, rgba(0, 212, 255, 0.2), transparent 32%),
     radial-gradient(circle at 88% 5%, rgba(157, 78, 221, 0.22), transparent 28%),
@@ -65,7 +69,11 @@
   --muted: #51607a;
   --heading: #0d1626;
   --verse: #3a2d6b;
+  /* Teal like the dark theme's #35d6bb, but dark enough for AA on the light
+     canvas (4.8:1+ against every --bg gradient stop; #35d6bb was ~1.7:1). */
+  --link: #0f766e;
 
+  --canvas: #f7f5fd;
   --bg:
     radial-gradient(circle at 12% 15%, rgba(0, 160, 210, 0.16), transparent 32%),
     radial-gradient(circle at 88% 5%, rgba(157, 78, 221, 0.16), transparent 28%),
@@ -109,11 +117,21 @@ body {
   min-height: 100%;
 }
 
+/* Paint the canvas on <html> directly: WebKit reports a body-propagated
+   background as transparent, which breaks automated contrast checks. */
+html {
+  background-color: var(--canvas);
+}
+
 body {
   color: var(--ink);
   font: 16px/1.5 var(--sans);
   background: var(--bg);
   background-attachment: fixed;
+}
+
+a {
+  color: var(--link);
 }
 
 #app {
@@ -141,7 +159,7 @@ body {
   height: auto;
   padding: 0.5rem 0.75rem;
   border-radius: 10px;
-  background: var(--surface-strong);
+  background-color: var(--surface-strong);
   color: var(--heading);
   border: 1px solid var(--accent);
   z-index: 10;
@@ -152,7 +170,7 @@ body {
   border: 1px solid var(--edge);
   border-radius: 20px;
   backdrop-filter: blur(8px);
-  background: var(--surface);
+  background-color: var(--surface);
   box-shadow: var(--shadow);
 }
 
@@ -292,7 +310,7 @@ input {
   border: 1px solid var(--input-border);
   border-radius: 10px;
   color: var(--ink);
-  background: var(--input-bg);
+  background-color: var(--input-bg);
   padding: 0.58rem 0.7rem;
   font: 0.95rem var(--sans);
 }
@@ -367,7 +385,7 @@ label {
   padding: 0.75rem;
   border: 1px solid var(--grid);
   border-radius: 12px;
-  background: var(--surface-strong);
+  background-color: var(--surface-strong);
 }
 
 .vector-head {
@@ -427,7 +445,7 @@ td {
 
 th {
   color: var(--heading);
-  background: var(--th-bg);
+  background-color: var(--th-bg);
 }
 
 td {
@@ -515,7 +533,7 @@ ul {
     margin-bottom: 0.7rem;
     border: 1px solid var(--grid);
     border-radius: 12px;
-    background: var(--surface-strong);
+    background-color: var(--surface-strong);
   }
 
   td {
