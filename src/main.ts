@@ -54,16 +54,25 @@ function bench(label: string, fn: () => void, iterations = 12): string {
 app.innerHTML = `
   <main class="lab-shell">
     <a class="skip-link" href="#exhibit-1">Skip to exhibits</a>
-    <header class="vault-hero reveal">
+    <div class="vault-hero reveal">
       <p class="verse">"Whether therefore ye eat, or drink, or whatsoever ye do, do all to the glory of God."<br />1 Corinthians 10:31</p>
-      <h1>crypto-lab-curve448</h1>
-      <p class="subtitle">The 224-bit security tier: X448 key exchange + Ed448 signatures.</p>
+      <header class="cl-hero">
+        <div class="cl-hero-main">
+          <h1 class="cl-hero-title">Curve448 / Ed448</h1>
+          <p class="cl-hero-sub">X448 ECDH · Ed448 · RFC 7748 / 8032</p>
+          <p class="cl-hero-desc">Run a live X448 Diffie-Hellman handshake and Ed448 sign/verify, then compare key sizes, signatures, and timings head-to-head against Curve25519/Ed25519 — with the RFC test vectors recomputed in your browser.</p>
+        </div>
+        <aside class="cl-hero-why" aria-label="Why it matters">
+          <span class="cl-hero-why-label">WHY IT MATTERS</span>
+          <p class="cl-hero-why-text">Curve448 is the 224-bit security tier — the higher-assurance ECC choice for long-lived keys and strict compliance. That margin isn't free: clamping, SHAKE256, and larger, slower keys are the price of trading Curve25519's speed for headroom.</p>
+        </aside>
+      </header>
       <div class="security-bar" aria-label="Security margin: Curve25519 is 128-bit, Curve448 is 224-bit">
         <span>128-bit</span>
         <div class="bar"></div>
         <span>224-bit</span>
       </div>
-    </header>
+    </div>
 
     <section class="panel reveal" style="--stagger: 1" id="exhibit-1">
       <h2>Exhibit 1: Why Curve448?</h2>

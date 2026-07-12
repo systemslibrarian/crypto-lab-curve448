@@ -212,6 +212,83 @@ h3 {
   margin: 0.3rem 0 1rem;
 }
 
+/* BEGIN cl-hero standard — managed, keep in sync across fleet */
+/* Colors mapped to this lab's tokens (--heading / --muted / --accent / --edge)
+   so the hero passes axe contrast in both themes. Local --border/--text-dim
+   aliases keep the rest of the block identical to the fleet source. */
+.cl-hero {
+  --border: var(--edge);
+  --text-dim: var(--muted);
+  /* Accessible purple for the small WHY label: raw --accent (#9d4edd) is only
+     ~4.2:1 as small text in both themes, so use lighter/darker AA-safe hues. */
+  --cl-why-ink: #c9a0ef;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(1rem, 4vw, 3rem);
+  flex-wrap: wrap;
+  margin: clamp(1rem, 3vw, 2rem) 0 1.5rem;
+}
+.cl-hero-main {
+  flex: 1 1 22rem;
+  min-width: min(100%, 20rem);
+}
+.cl-hero-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 3.8vw, 2.7rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  color: var(--heading);
+}
+.cl-hero-sub {
+  margin: 0.4rem 0 0;
+  font-size: clamp(0.9rem, 1.6vw, 1.05rem);
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+.cl-hero-desc {
+  margin: 0.55rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  max-width: 60ch;
+}
+.cl-hero-why {
+  flex: 0 1 min(40%, 26rem);
+  min-width: min(100%, 15rem);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1.05rem;
+  background: color-mix(in oklab, var(--accent) 6%, transparent);
+}
+.cl-hero-why-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--cl-why-ink);
+}
+[data-theme='light'] .cl-hero {
+  --cl-why-ink: #6b21d6;
+}
+.cl-hero-why-text {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+@media (max-width: 640px) {
+  .cl-hero {
+    flex-direction: column;
+  }
+  .cl-hero-why {
+    flex-basis: auto;
+    width: 100%;
+  }
+}
+/* END cl-hero standard */
+
 .security-bar {
   display: flex;
   align-items: center;
