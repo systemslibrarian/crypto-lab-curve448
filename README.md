@@ -4,6 +4,8 @@
 
 Browser-based demo of Curve448 (X448 key exchange) and Ed448 (digital signatures) per RFC 7748 and RFC 8032. Curve448 provides 224-bit classical security, the paranoid tier for long-lived data, national security profiles, and decades-long archive protection. The app uses `@noble/curves` for audited arithmetic and implements protocol flows on top: X448 Diffie-Hellman handshake with matching shared secrets, Ed448 signatures with SHAKE256-based derivation, and side-by-side comparison against Curve25519/Ed25519. Validation includes RFC 7748 Section 5.2 and RFC 8032 Section 7.4 vectors.
 
+Beyond showing *outcomes*, it teaches the *mechanisms*: a "Diffie-Hellman in 10 seconds" primer and a side-by-side "you compute / they compute" derivation make the identity a·B = b·A = ab·G visible instead of asking you to take "the two blobs matched" on faith; a log-scale security-margin visual replaces a misleading linear bar so the picture agrees with the honest 2^96 work-factor gap; a live "seed → hash → (scalar, nonce)" panel expands the current seed with both SHA-512 and SHAKE256 so you can see why an XOF is required for Ed448's larger field; and a guided domain-separation demo signs one message under two contexts and cross-checks them so the off-diagonal rejection is observable. First-mention jargon (scalar, ECDLP, XOF, domain separation) carries plain-language glosses.
+
 ## When to Use It
 
 - Understanding why the 224-bit security tier exists and where it is justified
@@ -17,7 +19,16 @@ Browser-based demo of Curve448 (X448 key exchange) and Ed448 (digital signatures
 
 **[systemslibrarian.github.io/crypto-lab-curve448](https://systemslibrarian.github.io/crypto-lab-curve448/)**
 
-Six interactive exhibits: the security-margin rationale, a live X448 Diffie-Hellman handshake (with a toggle that reveals RFC 7748 scalar clamping), Ed448 sign / verify / tamper with optional context separation, a live Curve25519-vs-Curve448 comparison with averaged in-browser benchmarks, and a "Verified Against the RFCs" panel that recomputes the RFC 7748 §5.2 and RFC 8032 §7.4 test vectors in your browser on every load. Light and dark themes are both fully supported.
+Six interactive exhibits:
+
+1. **Why Curve448?** — the security-margin rationale and the Goldilocks prime, headed by a log-scale work-factor visual that shows the honest 2^96 gap (not a misleading ~1.75× linear bar).
+2. **X448 Diffie-Hellman Live** — a live handshake plus a "Diffie-Hellman in 10 seconds" primer, a wire step that carries the real public points across the channel, and a "you compute / they compute" panel deriving a·B = b·A = ab·G; a toggle still reveals RFC 7748 scalar clamping down to the affected bits.
+3. **Ed448 Signatures** — sign / verify / tamper (tampering now sticks until you re-sign or Reset), a live "seed → hash → (scalar, nonce)" comparison of SHA-512 vs SHAKE256, and a guided domain-separation demo that signs one message under two contexts and cross-checks them.
+4. **Curve25519 vs Curve448** — a live side-by-side comparison with averaged in-browser benchmarks.
+5. **Verified Against the RFCs** — recomputes the RFC 7748 §5.2 and RFC 8032 §7.4 test vectors in your browser on every load.
+6. **When to Use Which** — decision tree and real deployments.
+
+Light and dark themes are both fully supported.
 
 ## What Can Go Wrong
 

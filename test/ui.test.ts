@@ -59,6 +59,48 @@ describe('demo UI', () => {
     expect(status?.classList.contains('bad')).toBe(true);
   });
 
+  it('shows the DH mechanism identity a·B = b·A = ab·G', () => {
+    // The teaching payoff of Exhibit 2: the shared term is spelled out.
+    const mech = document.querySelector('.mechanism')?.textContent ?? '';
+    expect(mech).toContain('ab·G');
+    // And the wire step carries the real public points across the channel.
+    document.querySelector<HTMLButtonElement>('#btn-handshake')?.click();
+    const wireA = document.querySelector('#wire-a')?.textContent ?? '';
+    expect(wireA).toMatch(/[0-9a-f]/);
+  });
+
+  it('expands the seed with both SHAKE256 and SHA-512', () => {
+    document.querySelector<HTMLButtonElement>('#btn-hashcmp')?.click();
+    const out = document.querySelector('#hashcmp-out')?.textContent ?? '';
+    expect(out).toContain('SHAKE256');
+    expect(out).toContain('SHA-512');
+    // The XOF-vs-fixed distinction must be observable, not just asserted.
+    expect(out).toContain('114');
+    expect(out).toContain('fixed');
+  });
+
+  it('demonstrates domain separation with an off-diagonal rejection', () => {
+    document.querySelector<HTMLButtonElement>('#btn-domainsep')?.click();
+    const out = document.querySelector('#domainsep-out')?.textContent ?? '';
+    // Two distinct valid sigs and cross-context rejection.
+    expect(out).toContain('verifies');
+    expect(out).toContain('rejected');
+  });
+
+  it('tampering the message sticks: re-verify still fails until reset', () => {
+    document.querySelector<HTMLButtonElement>('#btn-ed-sign')?.click();
+    document.querySelector<HTMLButtonElement>('#btn-ed-tamper-msg')?.click();
+    expect(document.querySelector('#ed-status')?.textContent).toContain('INVALID');
+    // Verify again — the tamper persisted, so it must still fail.
+    document.querySelector<HTMLButtonElement>('#btn-ed-verify')?.click();
+    const status = document.querySelector('#ed-status');
+    expect(status?.textContent).toContain('INVALID');
+    expect(status?.classList.contains('bad')).toBe(true);
+    // Reset restores a signable state.
+    document.querySelector<HTMLButtonElement>('#btn-ed-reset')?.click();
+    expect(document.querySelector('#ed-status')?.textContent).toContain('Reset');
+  });
+
   it('passes both RFC vectors live in the browser', () => {
     const badges = Array.from(document.querySelectorAll('#vectors .badge'));
     expect(badges).toHaveLength(2);

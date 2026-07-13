@@ -43,6 +43,27 @@ describe('ed448', () => {
     }
   });
 
+  it('domain separation: a signature is valid only under its own context', () => {
+    const kp = generateKeyPair();
+    const msg = new TextEncoder().encode('transfer approved');
+    const ctxA = new TextEncoder().encode('tls-handshake');
+    const ctxB = new TextEncoder().encode('email-signing');
+
+    const sigA = sign(msg, kp.privateKey, ctxA);
+    const sigB = sign(msg, kp.privateKey, ctxB);
+
+    // Same message + key, different context => distinct signatures.
+    expect(bytesToHex(sigA)).not.toBe(bytesToHex(sigB));
+
+    // Each verifies under its own context...
+    expect(verify(sigA, msg, kp.publicKey, ctxA)).toBe(true);
+    expect(verify(sigB, msg, kp.publicKey, ctxB)).toBe(true);
+
+    // ...and is rejected under the other's context.
+    expect(verify(sigA, msg, kp.publicKey, ctxB)).toBe(false);
+    expect(verify(sigB, msg, kp.publicKey, ctxA)).toBe(false);
+  });
+
   it('passes RFC 8032 section 7.4 1-octet test vector', () => {
     const privateKey = hexToBytes(
       'c4eab05d357007c632f3dbb48489924d552b08fe0c353a0d4a1f00acda2c463a'

@@ -289,20 +289,112 @@ h3 {
 }
 /* END cl-hero standard */
 
-.security-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  color: var(--heading);
-  font-size: 0.9rem;
+/* Log-scale security-margin visual. Bar widths are proportional to the security
+   exponent in bits (log2 of the work factor), so the picture agrees with the
+   honest 2^96 gap instead of the misleading ~1.75x a linear bar implies. */
+.security-scale {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.4rem;
 }
 
-.security-bar .bar {
-  height: 12px;
-  flex: 1;
+.security-scale-label {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.security-scale-label strong {
+  color: var(--heading);
+}
+
+.security-scale-row {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.security-scale-tier {
+  font: 600 0.82rem var(--mono);
+}
+
+.security-scale-tier.c25519 {
+  color: var(--curve25519);
+}
+
+.security-scale-tier.c448 {
+  color: var(--curve448);
+}
+
+.security-scale-track {
+  position: relative;
+  height: 14px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ffdd55 0%, #f9a826 30%, #9d4edd 100%);
-  box-shadow: 0 0 16px rgba(255, 215, 0, 0.25);
+  background: var(--input-bg);
+  border: 1px solid var(--grid);
+  overflow: visible;
+}
+
+.security-scale-fill {
+  height: 100%;
+  border-radius: 999px 0 0 999px;
+}
+
+.security-scale-fill.c25519 {
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.35), var(--curve25519));
+}
+
+.security-scale-fill.c448 {
+  background: linear-gradient(90deg, rgba(157, 78, 221, 0.35), var(--curve448));
+}
+
+.security-scale-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 22px;
+  background: var(--heading);
+  border-radius: 2px;
+}
+
+.security-scale-tick span {
+  position: absolute;
+  left: 50%;
+  top: -1.35rem;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 600 0.72rem var(--mono);
+  color: var(--heading);
+}
+
+.security-scale-work {
+  font: 500 0.8rem var(--mono);
+  color: var(--mono-ink);
+  white-space: nowrap;
+}
+
+.security-scale-anchor {
+  margin: 0.15rem 0 0;
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.security-scale-anchor strong {
+  color: var(--heading);
+}
+
+@media (max-width: 560px) {
+  .security-scale-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
+  .security-scale-tick span {
+    top: -1.3rem;
+  }
 }
 
 .panel {
@@ -452,6 +544,298 @@ label {
 .scenario {
   border-style: dashed;
   border-color: var(--scenario-edge);
+}
+
+/* "Diffie-Hellman in 10 seconds" primer + jargon glosses ------------------- */
+.primer {
+  border-left: 3px solid var(--accent);
+  margin-bottom: 0.9rem;
+}
+
+.primer p {
+  color: var(--ink);
+  margin: 0.5rem 0 0;
+  line-height: 1.55;
+}
+
+.primer strong {
+  color: var(--heading);
+}
+
+/* Plain-language gloss on hover / focus for jargon. Dotted underline signals
+   "definition available"; keyboard users can Tab to it (title shows on focus in
+   supporting UAs, and the text stays fully readable regardless). */
+abbr.gloss {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+  text-decoration-thickness: 1px;
+}
+
+/* Wire step: the two public points crossing the channel ------------------- */
+.wire {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin: 0.9rem 0;
+}
+
+.wire-pkt {
+  flex: 1 1 14rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px dashed var(--grid);
+  background: var(--input-bg);
+  font: 500 0.82rem var(--mono);
+  color: var(--ink);
+}
+
+.wire-pkt.a2b {
+  border-color: var(--alice-edge);
+  text-align: left;
+}
+
+.wire-pkt.b2a {
+  border-color: var(--bob-edge);
+  text-align: right;
+}
+
+.wire-hex {
+  color: var(--mono-ink);
+}
+
+/* Mechanism panel: side-by-side "you compute / they compute" -------------- */
+.mechanism {
+  border: 1px solid var(--edge);
+}
+
+.mechanism .mechanism-sub {
+  color: var(--ink);
+  margin: 0.5rem 0 0.9rem;
+  line-height: 1.55;
+}
+
+.mechanism-sub strong {
+  color: var(--heading);
+}
+
+.mechanism-cols {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.mechanism-col {
+  flex: 1 1 12rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--grid);
+  background: var(--surface-strong);
+  text-align: center;
+}
+
+.mechanism-col.alice {
+  border-color: var(--alice-edge);
+}
+
+.mechanism-col.bob {
+  border-color: var(--bob-edge);
+}
+
+.mechanism-who {
+  display: block;
+  font: 600 0.78rem var(--mono);
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+}
+
+.mechanism-eq {
+  display: block;
+  font: 500 1.05rem/1.7 var(--mono);
+  color: var(--pre-ink);
+}
+
+.mechanism-eq-join {
+  font: 700 1.4rem var(--mono);
+  color: var(--heading);
+}
+
+/* The shared term both sides land on — the payoff of the whole exhibit. */
+.abg {
+  color: var(--heading);
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+  padding: 0.05em 0.35em;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.hl-a {
+  color: var(--curve25519);
+  font-weight: 700;
+}
+
+.hl-b {
+  color: var(--curve448);
+  font-weight: 700;
+}
+
+.mechanism-note {
+  color: var(--muted);
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.mechanism-note em {
+  color: var(--ink);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* When both shared secrets match, tint them so the eye sees "same point". */
+.abg-match {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+/* Ghost (secondary) button for Reset. */
+.ghost-btn {
+  background: transparent;
+  border-style: dashed;
+}
+
+/* Seed -> hash -> (scalar, nonce) comparison ------------------------------ */
+.hashcmp {
+  margin-top: 0.9rem;
+}
+
+.hashcmp p {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.hashcmp-out {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hashcmp-out:empty {
+  display: none;
+}
+
+.hashcmp-card {
+  padding: 0.8rem;
+  border-radius: 12px;
+  border: 1px solid var(--grid);
+  background: var(--surface-strong);
+}
+
+.hashcmp-head {
+  font: 700 0.95rem var(--mono);
+  color: var(--heading);
+  margin-bottom: 0.5rem;
+}
+
+.hashcmp-len {
+  display: block;
+  font: 400 0.76rem var(--mono);
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.hashcmp-card .mono {
+  margin: 0.35rem 0;
+  font-size: 0.78rem;
+}
+
+.hashcmp-foot {
+  grid-column: 1 / -1;
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+  .hashcmp-out {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Domain-separation guided demo ------------------------------------------- */
+.domainsep {
+  margin-top: 0.9rem;
+}
+
+.domainsep p {
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.domainsep-inputs {
+  margin-top: 0.4rem;
+}
+
+.domainsep-out {
+  margin-top: 0.9rem;
+}
+
+.domainsep-out:empty {
+  display: none;
+}
+
+.ds-card {
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--grid);
+  background: var(--surface-strong);
+}
+
+.ds-ctx {
+  font: 600 0.82rem var(--mono);
+  color: var(--heading);
+  margin-bottom: 0.35rem;
+}
+
+.ds-card .mono {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.ds-matrix {
+  min-width: 0;
+  margin-top: 0.8rem;
+}
+
+.ds-matrix th,
+.ds-matrix td {
+  font: 500 0.85rem var(--mono);
+}
+
+.ds-ok {
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.ds-bad {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.ds-foot {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.ds-foot strong {
+  color: var(--heading);
 }
 
 /* Live RFC vector exhibit */

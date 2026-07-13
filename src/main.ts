@@ -8,11 +8,13 @@ import {
   tamperSignature,
   verify as verifyEd448,
 } from './ed448';
+import { type HashSplit, sha512Split, shake256Split } from './hashdemo';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('App container not found');
 
 const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 function shortHex(bytes: Uint8Array, chars = 24): string {
   const hex = bytesToHex(bytes);
@@ -67,10 +69,25 @@ app.innerHTML = `
           <p class="cl-hero-why-text">Curve448 is the 224-bit security tier — the higher-assurance ECC choice for long-lived keys and strict compliance. That margin isn't free: clamping, SHAKE256, and larger, slower keys are the price of trading Curve25519's speed for headroom.</p>
         </aside>
       </header>
-      <div class="security-bar" aria-label="Security margin: Curve25519 is 128-bit, Curve448 is 224-bit">
-        <span>128-bit</span>
-        <div class="bar"></div>
-        <span>224-bit</span>
+      <div class="security-scale" role="group" aria-labelledby="sec-scale-label">
+        <p id="sec-scale-label" class="security-scale-label">Attack work factor — <strong>log scale</strong>, one step = one decimal order of magnitude (10×). A linear bar would put these two tiers a hair apart; the truth is 2<sup>96</sup> ≈ 10<sup>29</sup> steps.</p>
+        <div class="security-scale-row">
+          <span class="security-scale-tier c25519">Curve25519</span>
+          <div class="security-scale-track" aria-hidden="true">
+            <div class="security-scale-fill c25519" style="width:36.4%"></div>
+            <div class="security-scale-tick" style="left:36.4%"><span>2<sup>128</sup></span></div>
+          </div>
+          <span class="security-scale-work">2<sup>128</sup> ≈ 10<sup>38.5</sup></span>
+        </div>
+        <div class="security-scale-row">
+          <span class="security-scale-tier c448">Curve448</span>
+          <div class="security-scale-track" aria-hidden="true">
+            <div class="security-scale-fill c448" style="width:63.7%"></div>
+            <div class="security-scale-tick" style="left:63.7%"><span>2<sup>224</sup></span></div>
+          </div>
+          <span class="security-scale-work">2<sup>224</sup> ≈ 10<sup>67.4</sup></span>
+        </div>
+        <p class="security-scale-anchor">If breaking 2<sup>128</sup> took the entire age of the universe (~14 billion years), breaking 2<sup>224</sup> would take that long <strong>about 10<sup>28</sup> times over</strong>. The gap isn't "1.75× stronger" — it's 2<sup>96</sup> (≈ 8 × 10<sup>28</sup>) times more work.</p>
       </div>
     </div>
 
@@ -97,6 +114,10 @@ Binary shape:
 
     <section class="panel reveal" style="--stagger: 2" id="exhibit-2">
       <h2>Exhibit 2: X448 Diffie-Hellman Live</h2>
+      <article class="card primer">
+        <h3>Diffie-Hellman in 10 seconds</h3>
+        <p>Alice and Bob want a shared secret but can only talk over a wire everyone can read. Each picks a private number and multiplies the public base point <strong>G</strong> by it to get a public point they can safely publish. The trick: point multiplication <em>commutes</em>. Alice takes <strong>her</strong> secret times <strong>Bob's</strong> public point; Bob takes <strong>his</strong> secret times <strong>Alice's</strong> public point — and both land on the exact same point <strong>ab·G</strong>. An eavesdropper who sees only the two public points can't get there.</p>
+      </article>
       <div class="actions">
         <button type="button" id="btn-handshake">Run Handshake</button>
         <button type="button" id="btn-compare">Compare Shared Secrets</button>
@@ -104,25 +125,48 @@ Binary shape:
       <div class="grid two">
         <article class="card alice">
           <h3>Alice</h3>
-          <p>Private a: <span id="alice-priv" class="secret"></span></p>
-          <p>Public A: <span id="alice-pub" class="mono"></span>
+          <p>Private <abbr class="gloss" title="A secret integer. In X448 it is 56 bytes, clamped per RFC 7748.">scalar</abbr> a: <span id="alice-priv" class="secret"></span></p>
+          <p>Public A = a·G: <span id="alice-pub" class="mono"></span>
             <button class="copy-btn" id="copy-alice-pub" type="button" aria-label="Copy Alice public key" hidden>copy</button></p>
           <p>Shared a·B: <span id="alice-shared" class="mono"></span></p>
         </article>
         <article class="card bob">
           <h3>Bob</h3>
-          <p>Private b: <span id="bob-priv" class="secret"></span></p>
-          <p>Public B: <span id="bob-pub" class="mono"></span>
+          <p>Private <abbr class="gloss" title="A secret integer. In X448 it is 56 bytes, clamped per RFC 7748.">scalar</abbr> b: <span id="bob-priv" class="secret"></span></p>
+          <p>Public B = b·G: <span id="bob-pub" class="mono"></span>
             <button class="copy-btn" id="copy-bob-pub" type="button" aria-label="Copy Bob public key" hidden>copy</button></p>
           <p>Shared b·A: <span id="bob-shared" class="mono"></span></p>
         </article>
       </div>
+
+      <div class="wire" role="group" aria-label="Public keys crossing the channel">
+        <span class="wire-pkt a2b">A <span id="wire-a" class="wire-hex"></span> ⟶ to Bob</span>
+        <span class="wire-pkt b2a">to Alice ⟵ B <span id="wire-b" class="wire-hex"></span></span>
+      </div>
+
+      <article class="card mechanism">
+        <h3>Why the two results match: a·B = b·A</h3>
+        <p class="mechanism-sub">Each side multiplies <strong>its own private scalar</strong> by <strong>the other side's public point</strong>. Substitute the definitions of A and B and the same product <span class="abg">ab·G</span> falls out both ways — that is the whole of Diffie-Hellman.</p>
+        <div class="mechanism-cols">
+          <div class="mechanism-col alice">
+            <span class="mechanism-who">Alice computes</span>
+            <code class="mechanism-eq">a · B<br />= a · (<span class="hl-b">b·G</span>)<br />= <span class="abg">ab·G</span></code>
+          </div>
+          <div class="mechanism-eq-join">=</div>
+          <div class="mechanism-col bob">
+            <span class="mechanism-who">Bob computes</span>
+            <code class="mechanism-eq">b · A<br />= b · (<span class="hl-a">a·G</span>)<br />= <span class="abg">ab·G</span></code>
+          </div>
+        </div>
+        <p class="mechanism-note">Scalar multiplication on the curve is associative and commutes over the scalars: a·(b·G) = b·(a·G) = (ab)·G. Neither party ever learns the other's scalar — only the shared point. The hex blobs above match <em>because</em> both are the little-endian u-coordinate of this one point.</p>
+      </article>
+
       <button class="reveal-toggle" type="button" id="btn-reveal-dh" aria-pressed="false">Reveal private scalars</button>
       <p id="dh-clamp" class="mono" hidden></p>
       <p id="dh-status" class="status" role="status" aria-live="polite"></p>
       <article class="card scenario">
         <h3>Surveillance Scenario</h3>
-        <p>Eve sees only A and B. Recovering (ab)·G from public points requires solving ECDLP at roughly 2^224 work on Curve448.</p>
+        <p>Eve sees only A and B. Recovering (ab)·G from public points requires solving the <abbr class="gloss" title="Elliptic-Curve Discrete Logarithm Problem: given public point P = k·G, recover the secret scalar k. No efficient classical algorithm is known.">ECDLP</abbr> at roughly 2^224 work on Curve448 — the same wall Alice and Bob leaned on to keep their scalars private.</p>
       </article>
     </section>
 
@@ -132,7 +176,7 @@ Binary shape:
         <article class="card">
           <label for="ed-message">Message</label>
           <input id="ed-message" value="Paul Clark certified" autocomplete="off" />
-          <label for="ed-context">Context (optional)</label>
+          <label for="ed-context">Context (optional) — <abbr class="gloss" title="Domain separation: a label mixed into the hash so a signature valid in one context does not verify in another.">domain separation</abbr></label>
           <input id="ed-context" value="" placeholder="e.g. tls-handshake" autocomplete="off" />
           <div class="actions inline">
             <button type="button" id="btn-ed-keygen">Generate Keypair</button>
@@ -140,6 +184,7 @@ Binary shape:
             <button type="button" id="btn-ed-verify">Verify</button>
             <button type="button" id="btn-ed-tamper-msg">Tamper Message</button>
             <button type="button" id="btn-ed-tamper-sig">Tamper Signature</button>
+            <button type="button" id="btn-ed-reset" class="ghost-btn">Reset</button>
           </div>
         </article>
         <article class="card">
@@ -152,9 +197,35 @@ Binary shape:
           <p id="ed-status" class="status" role="status" aria-live="polite"></p>
         </article>
       </div>
-      <article class="card">
-        <h3>Why SHAKE256?</h3>
-        <p>Ed25519 uses SHA-512. Ed448 uses SHAKE256 (XOF) per RFC 8032 for scalar and nonce derivation. A <em>context</em> string is domain separation: the same message signed under different contexts yields different valid signatures.</p>
+
+      <article class="card hashcmp">
+        <h3>Seed → hash → (scalar, nonce): why SHAKE256, not SHA-512</h3>
+        <p>Both curves derive the secret scalar <em>and</em> the per-signature nonce prefix by hashing the seed once and splitting the digest in half. Ed25519 uses SHA-512, whose output is a <strong>fixed</strong> 64 bytes. Ed448's field is bigger, so it needs 114 bytes — and SHA-512 simply cannot produce that. SHAKE256 is an <abbr class="gloss" title="eXtendable-Output Function: a hash you can squeeze to any output length from one sponge state.">XOF</abbr>: you squeeze it to whatever length you ask for. Below is the <strong>real</strong> hash of the current seed under each regime.</p>
+        <div class="actions inline">
+          <button type="button" id="btn-hashcmp">Expand this seed with both hashes</button>
+        </div>
+        <div id="hashcmp-out" class="hashcmp-out" tabindex="0" role="region" aria-label="SHAKE256 versus SHA-512 seed expansion output"></div>
+      </article>
+
+      <article class="card domainsep">
+        <h3>Domain separation, made visible</h3>
+        <p>A <em>context</em> is a label folded into Ed448's hash. Sign the <strong>same</strong> message under two different contexts and you get two different, equally-valid signatures — and crucially, neither verifies under the other's context. That is how a signature meant for "tls" can't be replayed as one meant for "email".</p>
+        <div class="grid two domainsep-inputs">
+          <div>
+            <label for="ds-ctx-a">Context A</label>
+            <input id="ds-ctx-a" value="tls-handshake" autocomplete="off" />
+          </div>
+          <div>
+            <label for="ds-ctx-b">Context B</label>
+            <input id="ds-ctx-b" value="email-signing" autocomplete="off" />
+          </div>
+        </div>
+        <label for="ds-msg">Message (signed under both)</label>
+        <input id="ds-msg" value="transfer approved" autocomplete="off" />
+        <div class="actions inline">
+          <button type="button" id="btn-domainsep">Sign under both contexts &amp; cross-check</button>
+        </div>
+        <div id="domainsep-out" class="domainsep-out" tabindex="0" role="region" aria-label="Domain separation comparison output"></div>
       </article>
     </section>
 
@@ -251,6 +322,8 @@ function renderHandshake(): void {
   const clamp = document.querySelector<HTMLParagraphElement>('#dh-clamp');
   const copyA = document.querySelector<HTMLButtonElement>('#copy-alice-pub');
   const copyB = document.querySelector<HTMLButtonElement>('#copy-bob-pub');
+  const wireA = document.querySelector<HTMLSpanElement>('#wire-a');
+  const wireB = document.querySelector<HTMLSpanElement>('#wire-b');
 
   if (!alicePriv || !alicePub || !aliceShared || !bobPriv || !bobPub || !bobShared || !status) return;
 
@@ -260,8 +333,20 @@ function renderHandshake(): void {
   bobPub.textContent = shortHex(latestHandshake.bob.publicKey);
   aliceShared.textContent = shortHex(latestHandshake.aliceComputedShared);
   bobShared.textContent = shortHex(latestHandshake.bobComputedShared);
+
+  // The wire step: show the exact public points that cross the channel — these
+  // are what Alice multiplies by b (as B) and Bob multiplies by a (as A).
+  if (wireA) wireA.textContent = shortHex(latestHandshake.alice.publicKey, 6);
+  if (wireB) wireB.textContent = shortHex(latestHandshake.bob.publicKey, 6);
+
+  // Mark both shared-secret lines as identical when they match so the eye can
+  // see the two independent computations landed on the same ab·G.
+  const matchCls = latestHandshake.secretsMatch ? 'mono abg-match' : 'mono';
+  aliceShared.className = matchCls;
+  bobShared.className = matchCls;
+
   status.textContent = latestHandshake.secretsMatch
-    ? '✓ IDENTICAL: both parties derived the same 56-byte shared secret.'
+    ? '✓ IDENTICAL: a·B and b·A both landed on ab·G — the same 56-byte shared secret.'
     : '✗ mismatch: handshake failed.';
   status.className = `status ${latestHandshake.secretsMatch ? 'ok' : 'bad'}`;
 
@@ -366,15 +451,30 @@ document.querySelector<HTMLButtonElement>('#btn-ed-verify')?.addEventListener('c
   renderEdState(valid ? '✓ VALID signature' : '✗ INVALID signature', valid);
 });
 
+// Tampering now MUTATES the live state (message or signature) and re-verifies,
+// so a follow-up Verify still fails — the tamper "sticks" until you re-Sign or
+// Reset. This matches what real integrity checking catches instead of quietly
+// testing a throwaway copy.
 document.querySelector<HTMLButtonElement>('#btn-ed-tamper-msg')?.addEventListener('click', () => {
   if (latestSignature.length === 0) {
     renderEdState('Sign a message first.', false);
     return;
   }
+  const msgInput = document.querySelector<HTMLInputElement>('#ed-message');
   const tampered = new Uint8Array(latestMessage);
   if (tampered.length > 0) tampered[0] ^= 0x01;
-  const valid = verifyEd448(latestSignature, tampered, edState.publicKey, readContext());
-  renderEdState(valid ? 'Unexpected valid result' : '✗ INVALID after message tamper', false);
+  latestMessage = tampered; // persist the flip
+  if (msgInput) {
+    // Reflect the flip in the visible field: byte 0's low bit toggled.
+    msgInput.value = decoder.decode(latestMessage);
+  }
+  const valid = verifyEd448(latestSignature, latestMessage, edState.publicKey, readContext());
+  renderEdState(
+    valid
+      ? 'Unexpected valid result'
+      : '✗ INVALID: message byte 0 flipped and kept. Verify still fails — re-Sign or Reset to recover.',
+    false,
+  );
 });
 
 document.querySelector<HTMLButtonElement>('#btn-ed-tamper-sig')?.addEventListener('click', () => {
@@ -382,9 +482,22 @@ document.querySelector<HTMLButtonElement>('#btn-ed-tamper-sig')?.addEventListene
     renderEdState('Sign a message first.', false);
     return;
   }
-  const tampered = tamperSignature(latestSignature);
-  const valid = verifyEd448(tampered, latestMessage, edState.publicKey, readContext());
-  renderEdState(valid ? 'Unexpected valid result' : '✗ INVALID after signature tamper', false);
+  latestSignature = tamperSignature(latestSignature); // persist the flip
+  const valid = verifyEd448(latestSignature, latestMessage, edState.publicKey, readContext());
+  renderEdState(
+    valid
+      ? 'Unexpected valid result'
+      : '✗ INVALID: signature byte 0 flipped and kept. Verify still fails — re-Sign or Reset to recover.',
+    false,
+  );
+});
+
+document.querySelector<HTMLButtonElement>('#btn-ed-reset')?.addEventListener('click', () => {
+  const msgInput = document.querySelector<HTMLInputElement>('#ed-message');
+  if (msgInput) msgInput.value = 'Paul Clark certified';
+  latestMessage = encoder.encode(msgInput?.value ?? 'Paul Clark certified');
+  latestSignature = new Uint8Array(0);
+  renderEdState('Reset — message restored, signature cleared. Sign again to continue.', true);
 });
 
 document.querySelector<HTMLButtonElement>('#btn-reveal-ed')?.addEventListener('click', (e) => {
@@ -400,6 +513,91 @@ wireCopy('copy-ed-pub', () => bytesToHex(edState.publicKey));
 wireCopy('copy-ed-sig', () => bytesToHex(latestSignature));
 
 renderEdState();
+
+// ---- Exhibit 3b: seed -> hash -> (scalar, nonce) ---------------------------
+
+function renderHashSplit(split: HashSplit): string {
+  const lenNote = split.fixedOutput
+    ? `fixed ${split.digestLen} bytes — this length is not adjustable`
+    : `squeezed to ${split.digestLen} bytes — an XOF gives you any length you ask for`;
+  return `
+    <div class="hashcmp-card">
+      <div class="hashcmp-head">${split.algo}
+        <span class="hashcmp-len">${lenNote}</span>
+      </div>
+      <p class="mono">seed (${split.seedLen} B): ${shortHex(edState.privateKey, 8)}</p>
+      <p class="mono">scalar half (${split.scalarHalf.length} B): ${shortHex(split.scalarHalf, 8)}</p>
+      <p class="mono">nonce prefix (${split.prefixHalf.length} B): ${shortHex(split.prefixHalf, 8)}</p>
+    </div>`;
+}
+
+document.querySelector<HTMLButtonElement>('#btn-hashcmp')?.addEventListener('click', () => {
+  const out = document.querySelector<HTMLDivElement>('#hashcmp-out');
+  if (!out) return;
+  // Ed25519 hashes a 32-byte seed; Ed448 hashes a 57-byte seed. Use the real
+  // current Ed448 seed for SHAKE256, and a 32-byte slice of it as a stand-in
+  // Ed25519 seed so both columns hash live bytes from the same source.
+  const ed25519Seed = edState.privateKey.slice(0, 32);
+  const sha = sha512Split(ed25519Seed);
+  const shake = shake256Split(edState.privateKey, 114);
+  out.innerHTML = `
+    ${renderHashSplit(sha)}
+    ${renderHashSplit(shake)}
+    <p class="hashcmp-foot">Same idea, two hashes: split the digest into (secret scalar, nonce prefix). SHA-512's 64 bytes can't cover Ed448's 114-byte need — only the XOF stretches that far. These are real digests computed just now in your browser.</p>`;
+});
+
+// ---- Exhibit 3c: domain separation made visible ----------------------------
+
+document.querySelector<HTMLButtonElement>('#btn-domainsep')?.addEventListener('click', () => {
+  const out = document.querySelector<HTMLDivElement>('#domainsep-out');
+  if (!out) return;
+  const ctxAStr = (document.querySelector<HTMLInputElement>('#ds-ctx-a')?.value ?? '').trim();
+  const ctxBStr = (document.querySelector<HTMLInputElement>('#ds-ctx-b')?.value ?? '').trim();
+  const msgStr = document.querySelector<HTMLInputElement>('#ds-msg')?.value ?? '';
+  if (ctxAStr.length === 0 || ctxBStr.length === 0) {
+    out.innerHTML = '<p class="status bad">Both contexts must be non-empty to compare.</p>';
+    return;
+  }
+  const kp = generateEd448KeyPair();
+  const msg = encoder.encode(msgStr);
+  const ctxA = encoder.encode(ctxAStr);
+  const ctxB = encoder.encode(ctxBStr);
+
+  const sigA = signEd448(msg, kp.privateKey, ctxA);
+  const sigB = signEd448(msg, kp.privateKey, ctxB);
+
+  // Each signature is valid ONLY under the context it was made with.
+  const aUnderA = verifyEd448(sigA, msg, kp.publicKey, ctxA);
+  const bUnderB = verifyEd448(sigB, msg, kp.publicKey, ctxB);
+  const aUnderB = verifyEd448(sigA, msg, kp.publicKey, ctxB); // should fail
+  const bUnderA = verifyEd448(sigB, msg, kp.publicKey, ctxA); // should fail
+
+  const yn = (ok: boolean): string =>
+    ok
+      ? '<span class="ds-ok">✓ verifies</span>'
+      : '<span class="ds-bad">✗ rejected</span>';
+
+  out.innerHTML = `
+    <div class="grid two">
+      <div class="ds-card">
+        <div class="ds-ctx">context = "${ctxAStr}"</div>
+        <p class="mono">sig A: ${shortHex(sigA, 10)}</p>
+      </div>
+      <div class="ds-card">
+        <div class="ds-ctx">context = "${ctxBStr}"</div>
+        <p class="mono">sig B: ${shortHex(sigB, 10)}</p>
+      </div>
+    </div>
+    <table class="ds-matrix">
+      <caption class="sr-only">Cross-context verification matrix</caption>
+      <thead><tr><th scope="col">signature</th><th scope="col">under "${ctxAStr}"</th><th scope="col">under "${ctxBStr}"</th></tr></thead>
+      <tbody>
+        <tr><td>sig A</td><td>${yn(aUnderA)}</td><td>${yn(aUnderB)}</td></tr>
+        <tr><td>sig B</td><td>${yn(bUnderA)}</td><td>${yn(bUnderB)}</td></tr>
+      </tbody>
+    </table>
+    <p class="ds-foot">Same message, same key, two contexts — two distinct valid signatures. Each verifies under its own context and is <strong>rejected</strong> under the other. That off-diagonal rejection is domain separation doing its job.</p>`;
+});
 
 // ---- Exhibit 4: live comparison --------------------------------------------
 
