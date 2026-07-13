@@ -38,7 +38,10 @@ describe('demo UI', () => {
     document.querySelector<HTMLButtonElement>('#btn-reveal-dh')?.click();
     const after = document.querySelector('#alice-priv')?.textContent ?? '';
     expect(after).toMatch(/^[0-9a-f]{112}$/); // 56-byte scalar as hex
-    expect(document.querySelector('#dh-clamp')?.hidden).toBe(false);
+    // Revealing also opens the live clamping bit-grid and renders 8 cells/byte.
+    expect(document.querySelector('#clampbox')?.hidden).toBe(false);
+    expect(document.querySelectorAll('#bitgrid-low .bit')).toHaveLength(8);
+    expect(document.querySelectorAll('#bitgrid-high .bit')).toHaveLength(8);
   });
 
   it('signs and verifies a message end to end', () => {
@@ -59,14 +62,33 @@ describe('demo UI', () => {
     expect(status?.classList.contains('bad')).toBe(true);
   });
 
-  it('shows the DH mechanism identity a·B = b·A = ab·G', () => {
-    // The teaching payoff of Exhibit 2: the shared term is spelled out.
-    const mech = document.querySelector('.mechanism')?.textContent ?? '';
-    expect(mech).toContain('ab·G');
-    // And the wire step carries the real public points across the channel.
+  it('plots the toy curve so scalar·G is a picture, not just hex', () => {
+    // The illustrative curve renders a backdrop of points plus the base point G.
+    const svg = document.querySelector('#toy-plot');
+    expect(svg?.querySelector('.toy-g')).not.toBeNull();
+    expect(svg?.querySelectorAll('.toy-dot').length ?? 0).toBeGreaterThan(10);
+    // Incrementing the scalar moves k·G to a different point.
+    const before = document.querySelector('#toy-eq')?.textContent ?? '';
+    const slider = document.querySelector<HTMLInputElement>('#toy-k');
+    if (slider) {
+      slider.value = '5';
+      slider.dispatchEvent(new Event('input'));
+    }
+    const after = document.querySelector('#toy-eq')?.textContent ?? '';
+    expect(after).toContain('5·G');
+    expect(after).not.toEqual(before);
+  });
+
+  it('gates the ab·G mechanism reveal behind the first handshake', async () => {
+    const mech = document.querySelector<HTMLElement>('#mechanism');
+    expect(mech?.textContent ?? '').toContain('ab·G');
+    // The wire step carries the real public points across the channel.
     document.querySelector<HTMLButtonElement>('#btn-handshake')?.click();
     const wireA = document.querySelector('#wire-a')?.textContent ?? '';
     expect(wireA).toMatch(/[0-9a-f]/);
+    // The reveal is deferred until the crossing lands; flush the timers.
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    expect(mech?.hidden).toBe(false);
   });
 
   it('expands the seed with both SHAKE256 and SHA-512', () => {

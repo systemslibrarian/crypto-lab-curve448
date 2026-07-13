@@ -9,12 +9,21 @@ import {
   verify as verifyEd448,
 } from './ed448';
 import { type HashSplit, sha512Split, shake256Split } from './hashdemo';
+import { makeToyCurve, mul, type ToyPoint } from './toycurve';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('App container not found');
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+
+/** True when the user asked the OS to minimize motion; all animation respects it. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
 
 function shortHex(bytes: Uint8Array, chars = 24): string {
   const hex = bytesToHex(bytes);
@@ -118,9 +127,28 @@ Binary shape:
         <h3>Diffie-Hellman in 10 seconds</h3>
         <p>Alice and Bob want a shared secret but can only talk over a wire everyone can read. Each picks a private number and multiplies the public base point <strong>G</strong> by it to get a public point they can safely publish. The trick: point multiplication <em>commutes</em>. Alice takes <strong>her</strong> secret times <strong>Bob's</strong> public point; Bob takes <strong>his</strong> secret times <strong>Alice's</strong> public point — and both land on the exact same point <strong>ab·G</strong>. An eavesdropper who sees only the two public points can't get there.</p>
       </article>
+
+      <article class="card toybox">
+        <h3>First, see a point: what does "scalar · G" even mean?</h3>
+        <p class="toybox-lead">Before the real 448-bit hex, build the intuition on a <strong>toy</strong> curve you can actually see. A public key is just <strong>k · G</strong>: start at the base point <strong>G</strong> and hop <strong>k</strong> times by the curve's addition rule. Drag the slider to increment <strong>k</strong> and watch the point move. <span class="toybox-warn">Illustrative only — this curve has 29 points; real X448 has ≈2<sup>446</sup>.</span></p>
+        <div class="toybox-grid">
+          <div class="toybox-plot-wrap">
+            <svg id="toy-plot" class="toybox-plot" viewBox="0 0 240 240" role="img" aria-labelledby="toy-plot-title"></svg>
+            <p id="toy-plot-title" class="sr-only">Points of a small elliptic curve over the field of 23 elements, with the current multiple of the base point highlighted.</p>
+          </div>
+          <div class="toybox-controls">
+            <label for="toy-k" class="toybox-klabel">scalar <strong>k</strong> = <span id="toy-k-val" class="toybox-kval">1</span></label>
+            <input id="toy-k" type="range" min="1" max="28" value="1" step="1" />
+            <p class="toybox-eq" id="toy-eq" aria-live="polite">1·G = (1, 11)</p>
+            <p class="toybox-hint">Every distinct k lands on a different point. To read k back from just the point — the <abbr class="gloss" title="Elliptic-Curve Discrete Logarithm Problem: given P = k·G, recover k. Trivial on this 29-point toy; ≈2^224 work on Curve448.">ECDLP</abbr> — you'd have to try them one by one. Trivial with 29 points; hopeless with 2<sup>446</sup>.</p>
+            <p class="toybox-link mono" id="toy-real">real X448 public A (448-bit, same idea): <span id="toy-real-hex">—</span></p>
+          </div>
+        </div>
+      </article>
+
       <div class="actions">
         <button type="button" id="btn-handshake">Run Handshake</button>
-        <button type="button" id="btn-compare">Compare Shared Secrets</button>
+        <button type="button" id="btn-compare" hidden>Compare Shared Secrets</button>
       </div>
       <div class="grid two">
         <article class="card alice">
@@ -139,12 +167,21 @@ Binary shape:
         </article>
       </div>
 
-      <div class="wire" role="group" aria-label="Public keys crossing the channel">
-        <span class="wire-pkt a2b">A <span id="wire-a" class="wire-hex"></span> ⟶ to Bob</span>
-        <span class="wire-pkt b2a">to Alice ⟵ B <span id="wire-b" class="wire-hex"></span></span>
+      <div class="wire" id="wire" role="group" aria-label="Public keys crossing the channel">
+        <div class="wire-track a2b">
+          <span class="wire-endpoint">Alice</span>
+          <span class="wire-pkt a2b" id="pkt-a">A <span id="wire-a" class="wire-hex"></span></span>
+          <span class="wire-endpoint">Bob</span>
+        </div>
+        <div class="wire-track b2a">
+          <span class="wire-endpoint">Alice</span>
+          <span class="wire-pkt b2a" id="pkt-b">B <span id="wire-b" class="wire-hex"></span></span>
+          <span class="wire-endpoint">Bob</span>
+        </div>
+        <p class="wire-caption" id="wire-caption">Press <strong>Run Handshake</strong> to send A to Bob and B to Alice across the open channel.</p>
       </div>
 
-      <article class="card mechanism">
+      <article class="card mechanism" id="mechanism" hidden aria-hidden="true">
         <h3>Why the two results match: a·B = b·A</h3>
         <p class="mechanism-sub">Each side multiplies <strong>its own private scalar</strong> by <strong>the other side's public point</strong>. Substitute the definitions of A and B and the same product <span class="abg">ab·G</span> falls out both ways — that is the whole of Diffie-Hellman.</p>
         <div class="mechanism-cols">
@@ -162,7 +199,25 @@ Binary shape:
       </article>
 
       <button class="reveal-toggle" type="button" id="btn-reveal-dh" aria-pressed="false">Reveal private scalars</button>
-      <p id="dh-clamp" class="mono" hidden></p>
+
+      <article class="card clampbox" id="clampbox" hidden>
+        <h3>What clamping actually does to the bits</h3>
+        <p class="clampbox-lead">RFC 7748 doesn't use your random 56 bytes as-is. It <strong>clamps</strong> two specific bits before the scalar is ever used. Here are the two bytes that change in Alice's scalar — each cell is one bit, low bit on the right.</p>
+        <div class="clampbox-rows">
+          <div class="clampbox-row">
+            <span class="clampbox-name">low byte (byte 0)</span>
+            <div class="bitgrid" id="bitgrid-low" role="img" aria-label="Low byte of the private scalar, eight bits"></div>
+            <span class="clampbox-effect">two low bits → <strong>0</strong></span>
+          </div>
+          <div class="clampbox-row">
+            <span class="clampbox-name">high byte (byte 55)</span>
+            <div class="bitgrid" id="bitgrid-high" role="img" aria-label="High byte of the private scalar, eight bits"></div>
+            <span class="clampbox-effect">top bit → <strong>1</strong></span>
+          </div>
+        </div>
+        <p class="clampbox-caption" id="clampbox-caption">Clearing the two low bits forces the scalar to a multiple of the cofactor (4), pinning it into the prime-order subgroup; setting the top bit fixes the scalar's length so timing can't leak it. Both are why an attacker can't nudge you off the safe curve.</p>
+      </article>
+
       <p id="dh-status" class="status" role="status" aria-live="polite"></p>
       <article class="card scenario">
         <h3>Surveillance Scenario</h3>
@@ -231,26 +286,42 @@ Binary shape:
 
     <section class="panel reveal" style="--stagger: 4" id="exhibit-4">
       <h2>Exhibit 4: Curve25519 vs Curve448</h2>
-      <div class="actions"><button type="button" id="btn-compare-curves">Generate Live Comparison</button></div>
-      <div class="table-wrap">
-        <table>
-          <caption class="sr-only">Live side-by-side key, signature, and performance comparison</caption>
-          <thead>
-            <tr><th>Metric</th><th>Curve25519 / Ed25519</th><th>Curve448 / Ed448</th></tr>
-          </thead>
-          <tbody id="compare-body"></tbody>
-        </table>
+      <button type="button" class="disclosure" id="btn-disclose-4" aria-expanded="false" aria-controls="disclose-4">
+        <span class="disclosure-icon" aria-hidden="true">▸</span> Show me the numbers
+      </button>
+      <div class="accordion" id="disclose-4" hidden>
+        <p class="disclosure-lead">The point of this table is one row: the margin isn't free. Everything Curve448 buys in security it pays for in bigger keys, bigger signatures, and slower operations. The <span class="tradeoff-key">highlighted rows</span> are where that price shows up.</p>
+        <div class="actions"><button type="button" id="btn-compare-curves">Generate Live Comparison</button></div>
+        <div class="table-wrap" tabindex="0" role="region" aria-label="Live curve comparison table">
+          <table>
+            <caption class="sr-only">Live side-by-side key, signature, and performance comparison</caption>
+            <thead>
+              <tr><th>Metric</th><th>Curve25519 / Ed25519</th><th>Curve448 / Ed448</th></tr>
+            </thead>
+            <tbody id="compare-body"></tbody>
+          </table>
+        </div>
+        <p class="tradeoff-callout"><strong>The price of the margin:</strong> a 114-byte Ed448 signature is ~1.8× the size of Ed25519's 64 bytes, and every operation runs slower. That is the trade you make for jumping from 128-bit to 224-bit security.</p>
       </div>
     </section>
 
     <section class="panel reveal" style="--stagger: 5" id="exhibit-5">
       <h2>Exhibit 5: Verified Against the RFCs</h2>
       <p>Trust nothing — verify. These published test vectors are recomputed live in your browser on every page load.</p>
-      <div id="vectors"></div>
+      <button type="button" class="disclosure" id="btn-disclose-5" aria-expanded="false" aria-controls="disclose-5">
+        <span class="disclosure-icon" aria-hidden="true">▸</span> Show the proof
+      </button>
+      <div class="accordion" id="disclose-5" hidden>
+        <div id="vectors"></div>
+      </div>
     </section>
 
     <section class="panel reveal" style="--stagger: 6" id="exhibit-6">
       <h2>Exhibit 6: When to Use Which</h2>
+      <button type="button" class="disclosure" id="btn-disclose-6" aria-expanded="false" aria-controls="disclose-6">
+        <span class="disclosure-icon" aria-hidden="true">▸</span> Show the decision guide
+      </button>
+      <div class="accordion" id="disclose-6" hidden>
       <div class="grid two">
         <article class="card">
           <h3>Decision Tree</h3>
@@ -271,6 +342,7 @@ Binary shape:
         </article>
       </div>
       <p class="cross-links">Cross-links: curve-lens, x3dh-wire, ed25519-forge, ratchet-wire, hybrid-wire, quantum-vault-kpqc, dilithium-seal.</p>
+      </div>
     </section>
   </main>
 <footer style="margin-top:3rem;padding:2rem 1rem;border-top:1px solid rgba(128,128,128,.25);text-align:center;font-size:.85rem;line-height:1.9;font-family:ui-monospace,Menlo,Consolas,monospace">
@@ -319,7 +391,6 @@ function renderHandshake(): void {
   const bobPub = document.querySelector<HTMLSpanElement>('#bob-pub');
   const bobShared = document.querySelector<HTMLSpanElement>('#bob-shared');
   const status = document.querySelector<HTMLParagraphElement>('#dh-status');
-  const clamp = document.querySelector<HTMLParagraphElement>('#dh-clamp');
   const copyA = document.querySelector<HTMLButtonElement>('#copy-alice-pub');
   const copyB = document.querySelector<HTMLButtonElement>('#copy-bob-pub');
   const wireA = document.querySelector<HTMLSpanElement>('#wire-a');
@@ -353,23 +424,137 @@ function renderHandshake(): void {
   if (copyA) copyA.hidden = false;
   if (copyB) copyB.hidden = false;
 
-  if (clamp) {
-    clamp.hidden = !revealDhPrivate;
-    if (revealDhPrivate) {
-      const first = latestHandshake.alice.privateKey[0];
-      const last = latestHandshake.alice.privateKey[latestHandshake.alice.privateKey.length - 1];
-      clamp.textContent =
-        `RFC 7748 clamping holds: low byte ${first
-          .toString(2)
-          .padStart(8, '0')} has its two low bits cleared, ` +
-        `high byte ${last.toString(2).padStart(8, '0')} has its top bit set.`;
+  // Toy-curve exhibit links to the *real* public A so the picture and the
+  // 448-bit output are visibly the same operation, k·G, at two scales.
+  const toyReal = document.querySelector<HTMLSpanElement>('#toy-real-hex');
+  if (toyReal) toyReal.textContent = shortHex(latestHandshake.alice.publicKey, 6);
+
+  const clampbox = document.querySelector<HTMLElement>('#clampbox');
+  if (clampbox) clampbox.hidden = !revealDhPrivate;
+  if (revealDhPrivate) renderClampGrid();
+}
+
+/**
+ * Render the low and high bytes of Alice's scalar as 8-cell bit grids, then
+ * (unless reduced motion) flip the two low bits to 0 and the top bit to 1 so
+ * the learner watches clamping happen instead of reading about it. The clamped
+ * value shown is the *actual* scalar in use; we reconstruct the pre-clamp bits
+ * only for the low/high bytes to show what changed.
+ */
+function renderClampGrid(): void {
+  const low = document.querySelector<HTMLDivElement>('#bitgrid-low');
+  const high = document.querySelector<HTMLDivElement>('#bitgrid-high');
+  if (!low || !high) return;
+
+  const key = latestHandshake.alice.privateKey;
+  const clampedLow = key[0]; // already has bits 0,1 cleared
+  const clampedHigh = key[key.length - 1]; // already has bit 7 set
+
+  // Build a cell row from a byte, bit 7 (MSB) on the left. `changed` marks the
+  // clamp-affected bit positions so they can animate.
+  const buildRow = (
+    el: HTMLDivElement,
+    byteVal: number,
+    changedBits: number[],
+    finalBits: Record<number, number>,
+  ) => {
+    el.innerHTML = '';
+    for (let bit = 7; bit >= 0; bit -= 1) {
+      const cell = document.createElement('span');
+      cell.className = 'bit';
+      const val = (byteVal >> bit) & 1;
+      cell.dataset.bit = String(bit);
+      if (changedBits.includes(bit)) {
+        // Start from the "pre-clamp" appearance, then animate to final.
+        const pre = finalBits[bit] === 0 ? 1 : 0;
+        cell.textContent = String(pre);
+        cell.classList.add(pre ? 'on' : 'off', 'will-clamp');
+      } else {
+        cell.textContent = String(val);
+        cell.classList.add(val ? 'on' : 'off');
+      }
+      el.appendChild(cell);
     }
+  };
+
+  buildRow(low, clampedLow, [0, 1], { 0: 0, 1: 0 });
+  buildRow(high, clampedHigh, [7], { 7: 1 });
+
+  const settle = (el: HTMLDivElement, finalBits: Record<number, number>) => {
+    el.querySelectorAll<HTMLElement>('.will-clamp').forEach((cell) => {
+      const bit = Number(cell.dataset.bit);
+      const target = finalBits[bit];
+      cell.textContent = String(target);
+      cell.classList.remove('on', 'off');
+      cell.classList.add(target ? 'on' : 'off', 'clamped');
+    });
+  };
+
+  if (prefersReducedMotion()) {
+    settle(low, { 0: 0, 1: 0 });
+    settle(high, { 7: 1 });
+  } else {
+    window.setTimeout(() => {
+      settle(low, { 0: 0, 1: 0 });
+      settle(high, { 7: 1 });
+    }, 450);
   }
+}
+
+/** Reveal the mechanism panel (the ab·G payoff) once a handshake has crossed. */
+function revealMechanism(): void {
+  const mech = document.querySelector<HTMLElement>('#mechanism');
+  if (mech && mech.hidden) {
+    mech.hidden = false;
+    mech.setAttribute('aria-hidden', 'false');
+  }
+  const compare = document.querySelector<HTMLButtonElement>('#btn-compare');
+  if (compare) compare.hidden = false;
+}
+
+/**
+ * Animate A traveling left→right to Bob and B right→left to Alice, then flash
+ * the arriving packets before revealing the mechanism. Reduced-motion users
+ * skip straight to the settled, revealed state.
+ */
+function runWireAnimation(): void {
+  const wire = document.querySelector<HTMLElement>('#wire');
+  const pktA = document.querySelector<HTMLElement>('#pkt-a');
+  const pktB = document.querySelector<HTMLElement>('#pkt-b');
+  const caption = document.querySelector<HTMLElement>('#wire-caption');
+
+  if (caption) {
+    caption.innerHTML =
+      'A crosses to Bob (who computes <strong>b·A</strong>); B crosses to Alice (who computes <strong>a·B</strong>).';
+  }
+
+  if (prefersReducedMotion() || !wire || !pktA || !pktB) {
+    revealMechanism();
+    if (pktA) pktA.classList.add('arrived');
+    if (pktB) pktB.classList.add('arrived');
+    return;
+  }
+
+  pktA.classList.remove('arrived', 'sending');
+  pktB.classList.remove('arrived', 'sending');
+  // Force reflow so re-adding the class restarts the transition.
+  void pktA.offsetWidth;
+  pktA.classList.add('sending');
+  pktB.classList.add('sending');
+
+  window.setTimeout(() => {
+    pktA.classList.add('arrived');
+    pktB.classList.add('arrived');
+    // The ab·G payoff appears the moment the crossed points land on the far
+    // side, so the reveal reads as a consequence of the exchange.
+    revealMechanism();
+  }, 850);
 }
 
 document.querySelector<HTMLButtonElement>('#btn-handshake')?.addEventListener('click', () => {
   latestHandshake = simulateHandshake();
   renderHandshake();
+  runWireAnimation();
 });
 
 document.querySelector<HTMLButtonElement>('#btn-compare')?.addEventListener('click', () => {
@@ -396,6 +581,113 @@ wireCopy('copy-alice-pub', () => bytesToHex(latestHandshake.alice.publicKey));
 wireCopy('copy-bob-pub', () => bytesToHex(latestHandshake.bob.publicKey));
 
 renderHandshake();
+
+// ---- Exhibit 2 (toy): geometric intuition for "public = scalar · G" --------
+// An illustrative curve over F_23. Plotting k·G as k increments turns scalar
+// multiplication from a hex string into visible hops around a small point set,
+// alongside the real 448-bit output which stays spec-accurate above.
+const TOY = makeToyCurve();
+const TOY_MAX = TOY.order - 1; // largest k before we wrap back to G
+
+function toyScreen(pt: ToyPoint): { cx: number; cy: number } {
+  // Map field coords [0, p) into a 20..220 box; flip y so it reads bottom-up.
+  const pad = 20;
+  const span = 200;
+  const cx = pad + (pt.x / (TOY.p - 1)) * span;
+  const cy = pad + span - (pt.y / (TOY.p - 1)) * span;
+  return { cx, cy };
+}
+
+function renderToyPlot(k: number): void {
+  const svg = document.querySelector<SVGSVGElement>('#toy-plot');
+  const kVal = document.querySelector<HTMLSpanElement>('#toy-k-val');
+  const eq = document.querySelector<HTMLParagraphElement>('#toy-eq');
+  if (!svg) return;
+
+  const ns = 'http://www.w3.org/2000/svg';
+  svg.innerHTML = '';
+
+  // Faint backdrop: every point on the toy curve.
+  for (const pt of TOY.points) {
+    const { cx, cy } = toyScreen(pt);
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', cx.toFixed(1));
+    c.setAttribute('cy', cy.toFixed(1));
+    c.setAttribute('r', '2.6');
+    c.setAttribute('class', 'toy-dot');
+    svg.appendChild(c);
+  }
+
+  // The base point G, always labeled.
+  const g = toyScreen(TOY.G);
+  const gc = document.createElementNS(ns, 'circle');
+  gc.setAttribute('cx', g.cx.toFixed(1));
+  gc.setAttribute('cy', g.cy.toFixed(1));
+  gc.setAttribute('r', '5');
+  gc.setAttribute('class', 'toy-g');
+  svg.appendChild(gc);
+  const gl = document.createElementNS(ns, 'text');
+  gl.setAttribute('x', (g.cx + 7).toFixed(1));
+  gl.setAttribute('y', (g.cy - 6).toFixed(1));
+  gl.setAttribute('class', 'toy-label');
+  gl.textContent = 'G';
+  svg.appendChild(gl);
+
+  // The current multiple k·G.
+  const P = mul(k, TOY.G, TOY);
+  if (!P.inf) {
+    const { cx, cy } = toyScreen(P);
+    const pc = document.createElementNS(ns, 'circle');
+    pc.setAttribute('cx', cx.toFixed(1));
+    pc.setAttribute('cy', cy.toFixed(1));
+    pc.setAttribute('r', '6.5');
+    pc.setAttribute('class', 'toy-cur');
+    svg.appendChild(pc);
+    const pl = document.createElementNS(ns, 'text');
+    pl.setAttribute('x', (cx + 7).toFixed(1));
+    pl.setAttribute('y', (cy - 6).toFixed(1));
+    pl.setAttribute('class', 'toy-label cur');
+    pl.textContent = `${k}·G`;
+    svg.appendChild(pl);
+  }
+
+  if (kVal) kVal.textContent = String(k);
+  if (eq) {
+    eq.textContent = P.inf
+      ? `${k}·G = O (point at infinity — the identity)`
+      : `${k}·G = (${P.x}, ${P.y})`;
+  }
+}
+
+const toySlider = document.querySelector<HTMLInputElement>('#toy-k');
+if (toySlider) {
+  toySlider.max = String(TOY_MAX);
+  toySlider.addEventListener('input', () => renderToyPlot(Number(toySlider.value)));
+}
+renderToyPlot(1);
+
+// ---- Progressive disclosure: gate Exhibits 4-6 behind toggles --------------
+function wireDisclosure(btnId: string): void {
+  const btn = document.querySelector<HTMLButtonElement>(`#${btnId}`);
+  if (!btn) return;
+  const targetId = btn.getAttribute('aria-controls');
+  const panel = targetId ? document.getElementById(targetId) : null;
+  if (!panel) return;
+  const label = btn.querySelector('.disclosure-icon')?.nextSibling;
+  const openText = label?.textContent ?? ' Show';
+  btn.addEventListener('click', () => {
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    const next = !expanded;
+    btn.setAttribute('aria-expanded', String(next));
+    panel.hidden = !next;
+    const icon = btn.querySelector('.disclosure-icon');
+    if (icon) icon.textContent = next ? '▾' : '▸';
+    if (label) label.textContent = next ? ' Hide' : openText;
+  });
+}
+wireDisclosure('btn-disclose-4');
+wireDisclosure('btn-disclose-5');
+wireDisclosure('btn-disclose-6');
 
 // ---- Exhibit 3: Ed448 signatures -------------------------------------------
 
@@ -652,25 +944,28 @@ function compareCurves(): void {
     }),
   ].join(' | ');
 
-  const rows: Array<[string, string, string]> = [
+  // `trade` marks the rows that embody the core cost of the security margin, so
+  // the eye lands on them instead of diffing eleven equal-weight cells.
+  const rows: Array<[string, string, string, boolean?]> = [
     ['Private key size', '32 bytes', '56 bytes'],
     ['Public key size', `${x25519Alice.publicKey.length} bytes`, `${x448Alice.publicKey.length} bytes`],
     ['Shared secret size', `${x25519Shared.length} bytes`, `${x448Shared.length} bytes`],
     ['Classical security', '128-bit', '224-bit'],
     ['EdDSA seed size', '32 bytes', '57 bytes'],
     ['EdDSA pubkey size', `${ed25519Public.length} bytes`, `${ed448Kp.publicKey.length} bytes`],
-    ['Signature size', `${ed25519Sig.length} bytes`, `${ed448Sig.length} bytes`],
+    ['Signature size', `${ed25519Sig.length} bytes`, `${ed448Sig.length} bytes`, true],
     ['Hash internals', 'SHA-512', 'SHAKE256'],
     ['Sample public key', shortHex(x25519Alice.publicKey, 16), shortHex(x448Alice.publicKey, 16)],
-    ['Performance (avg, browser)', perfLeft, perfRight],
+    ['Performance (avg, browser)', perfLeft, perfRight, true],
     ['Common deployments', 'Signal, mainstream TLS, default SSH', 'High-security SSH, long-term GPG, optional TLS 1.3 group'],
   ];
 
   body.innerHTML = rows
-    .map(
-      ([metric, left, right]) =>
-        `<tr><td data-label="Metric">${metric}</td><td class="mono" data-label="Curve25519 / Ed25519">${left}</td><td class="mono" data-label="Curve448 / Ed448">${right}</td></tr>`,
-    )
+    .map(([metric, left, right, trade]) => {
+      const cls = trade ? ' class="tradeoff-row"' : '';
+      const tag = trade ? ' <span class="tradeoff-tag">the price</span>' : '';
+      return `<tr${cls}><td data-label="Metric">${metric}${tag}</td><td class="mono" data-label="Curve25519 / Ed25519">${left}</td><td class="mono" data-label="Curve448 / Ed448">${right}</td></tr>`;
+    })
     .join('');
 }
 

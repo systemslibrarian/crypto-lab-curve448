@@ -572,37 +572,315 @@ abbr.gloss {
   text-decoration-thickness: 1px;
 }
 
+/* Toy-curve visualizer: a picture of "public = scalar · G" ----------------- */
+.toybox {
+  border-left: 3px solid var(--accent);
+  margin-bottom: 0.9rem;
+}
+
+.toybox-lead {
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0.5rem 0 0.9rem;
+}
+
+.toybox-lead strong {
+  color: var(--heading);
+}
+
+.toybox-warn {
+  display: inline-block;
+  margin-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.toybox-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) 1fr;
+  gap: 1rem;
+  align-items: center;
+}
+
+.toybox-plot-wrap {
+  justify-self: center;
+}
+
+.toybox-plot {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--grid);
+  background: var(--input-bg);
+}
+
+.toy-dot {
+  fill: var(--muted);
+  opacity: 0.45;
+}
+
+.toy-g {
+  fill: none;
+  stroke: var(--curve25519);
+  stroke-width: 2;
+}
+
+.toy-cur {
+  fill: var(--accent);
+  stroke: var(--heading);
+  stroke-width: 1.5;
+  transition: cx 220ms ease, cy 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toy-cur {
+    transition: none;
+  }
+}
+
+.toy-label {
+  font: 700 11px var(--mono);
+  fill: var(--curve25519);
+}
+
+.toy-label.cur {
+  fill: var(--heading);
+}
+
+.toybox-controls {
+  min-width: 0;
+}
+
+.toybox-klabel {
+  display: block;
+  color: var(--ink);
+  font: 500 0.9rem var(--mono);
+  margin-bottom: 0.3rem;
+}
+
+.toybox-klabel strong,
+.toybox-kval {
+  color: var(--heading);
+}
+
+.toybox-controls input[type='range'] {
+  width: 100%;
+  margin: 0.2rem 0 0.7rem;
+  accent-color: var(--accent);
+}
+
+.toybox-eq {
+  margin: 0 0 0.6rem;
+  font: 700 1.05rem var(--mono);
+  color: var(--heading);
+}
+
+.toybox-hint {
+  margin: 0 0 0.7rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.toybox-link {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.toybox-link #toy-real-hex {
+  color: var(--mono-ink);
+}
+
+@media (max-width: 560px) {
+  .toybox-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Wire step: the two public points crossing the channel ------------------- */
 .wire {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 0.6rem;
+  display: grid;
+  gap: 0.55rem;
   margin: 0.9rem 0;
 }
 
-.wire-pkt {
-  flex: 1 1 14rem;
-  padding: 0.5rem 0.75rem;
+.wire-track {
+  display: grid;
+  grid-template-columns: 3.4rem 1fr 3.4rem;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  padding: 0.35rem 0.5rem;
   border-radius: 10px;
   border: 1px dashed var(--grid);
   background: var(--input-bg);
-  font: 500 0.82rem var(--mono);
+  overflow: hidden;
+}
+
+.wire-endpoint {
+  font: 600 0.74rem var(--mono);
+  color: var(--muted);
+  text-align: center;
+}
+
+.wire-pkt {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--grid);
+  background: var(--surface-strong);
+  font: 500 0.8rem var(--mono);
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: transform 800ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 200ms ease;
 }
 
-.wire-pkt.a2b {
+.wire-track.a2b .wire-pkt {
   border-color: var(--alice-edge);
-  text-align: left;
+  justify-self: start;
+  transform: translateX(-4%);
 }
 
-.wire-pkt.b2a {
+.wire-track.b2a .wire-pkt {
   border-color: var(--bob-edge);
-  text-align: right;
+  justify-self: end;
+  transform: translateX(4%);
+}
+
+/* Start position when a send begins. */
+.wire-track.a2b .wire-pkt.sending {
+  transform: translateX(-4%);
+}
+.wire-track.b2a .wire-pkt.sending {
+  transform: translateX(4%);
+}
+
+/* Arrived: the packet has crossed to the far endpoint and pulses briefly. */
+.wire-track.a2b .wire-pkt.arrived {
+  transform: translateX(calc(100% - 4%));
+  box-shadow: 0 0 0 2px var(--alice-edge);
+}
+
+.wire-track.b2a .wire-pkt.arrived {
+  transform: translateX(calc(-100% + 4%));
+  box-shadow: 0 0 0 2px var(--bob-edge);
 }
 
 .wire-hex {
   color: var(--mono-ink);
+}
+
+.wire-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.wire-caption strong {
+  color: var(--heading);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wire-pkt {
+    transition: none;
+  }
+}
+
+/* Clamping bit-grid: watch RFC 7748 flip the exact bits --------------------- */
+.clampbox {
+  margin-top: 0.7rem;
+  border: 1px solid var(--edge);
+}
+
+.clampbox-lead {
+  color: var(--ink);
+  line-height: 1.55;
+  margin: 0.5rem 0 0.9rem;
+}
+
+.clampbox-lead strong {
+  color: var(--heading);
+}
+
+.clampbox-rows {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.clampbox-row {
+  display: grid;
+  grid-template-columns: 9rem auto 1fr;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.clampbox-name {
+  font: 600 0.8rem var(--mono);
+  color: var(--muted);
+}
+
+.bitgrid {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.bit {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 5px;
+  border: 1px solid var(--grid);
+  font: 700 0.8rem var(--mono);
+  transition: background-color 300ms ease, color 300ms ease, transform 300ms ease;
+}
+
+.bit.on {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--heading);
+}
+
+.bit.off {
+  background: var(--input-bg);
+  color: var(--muted);
+}
+
+.bit.clamped {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.clampbox-effect {
+  font: 500 0.82rem var(--mono);
+  color: var(--ink);
+}
+
+.clampbox-effect strong {
+  color: var(--heading);
+}
+
+.clampbox-caption {
+  margin: 0.9rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bit {
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .clampbox-row {
+    grid-template-columns: 1fr;
+    gap: 0.3rem;
+  }
 }
 
 /* Mechanism panel: side-by-side "you compute / they compute" -------------- */
@@ -884,6 +1162,77 @@ abbr.gloss {
 
 .badge.bad {
   color: var(--bad);
+}
+
+/* Progressive-disclosure toggles for Exhibits 4-6 -------------------------- */
+.disclosure {
+  margin-top: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: 600 0.9rem var(--sans);
+}
+
+.disclosure-icon {
+  font-size: 0.75rem;
+}
+
+.disclosure[hidden] {
+  display: none;
+}
+
+.accordion[hidden] {
+  display: none;
+}
+
+.disclosure-lead {
+  color: var(--ink);
+  margin: 0.9rem 0 0;
+  line-height: 1.55;
+}
+
+.tradeoff-key {
+  color: var(--heading);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  padding: 0.02em 0.35em;
+  border-radius: 5px;
+  font-weight: 600;
+}
+
+/* The one or two rows that embody the actual cost of the security margin. */
+.tradeoff-row td {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.tradeoff-row td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.tradeoff-tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font: 700 0.64rem var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--heading);
+  border: 1px solid var(--accent);
+}
+
+.tradeoff-callout {
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--edge);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.tradeoff-callout strong {
+  color: var(--heading);
 }
 
 .table-wrap {
