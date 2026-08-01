@@ -336,7 +336,7 @@ Binary shape:
           <h3>Real Deployments</h3>
           <ul>
             <li>TLS 1.3 default: X25519, optional X448</li>
-            <li>OpenSSH modern default: Ed25519; high-security profile: Ed448</li>
+            <li>SSH: Ed25519 is the OpenSSH default; <code>ssh-ed448</code> is standardized in RFC 8709 and shipped by PuTTY/WinSCP, but OpenSSH has not implemented it</li>
             <li>GnuPG long-term identity keys: Ed448</li>
           </ul>
         </article>
@@ -957,7 +957,7 @@ function compareCurves(): void {
     ['Hash internals', 'SHA-512', 'SHAKE256'],
     ['Sample public key', shortHex(x25519Alice.publicKey, 16), shortHex(x448Alice.publicKey, 16)],
     ['Performance (avg, browser)', perfLeft, perfRight, true],
-    ['Common deployments', 'Signal, mainstream TLS, default SSH', 'High-security SSH, long-term GPG, optional TLS 1.3 group'],
+    ['Common deployments', 'Signal, mainstream TLS, default SSH', 'RFC 8709 ssh-ed448 (PuTTY/WinSCP, not OpenSSH), long-term GPG, optional TLS 1.3 group'],
   ];
 
   body.innerHTML = rows

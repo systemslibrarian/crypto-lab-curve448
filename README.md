@@ -42,7 +42,7 @@ Light and dark themes are both fully supported.
 
 - Curve448 was designed by Mike Hamburg at Rambus in 2014 and named Ed448-Goldilocks for the prime's balanced structure, then standardized in RFC 7748 (X448) and RFC 8032 (Ed448).
 - TLS 1.3 includes X448 as an optional NamedGroup for high-security key exchange.
-- OpenSSH 9+ supports high-assurance Ed448 keys, and GnuPG supports Ed448 for long-lived identity keys.
+- SSH standardizes the `ssh-ed448` key type in RFC 8709 — implemented by PuTTY 0.75+ and WinSCP, though OpenSSH has not adopted it — and GnuPG supports Ed448 for long-lived identity keys.
 - CNSA-style high-assurance classical cryptography profiles favor Curve448 when long-horizon confidentiality or stronger classical margins are required, though most broad interoperability still centers on Curve25519.
 
 ## How to Run Locally
@@ -70,5 +70,7 @@ npm run build    # type-check and produce the production bundle in dist/
 ```
 
 ---
+
+*One of 170+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
