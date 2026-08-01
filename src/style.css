@@ -212,7 +212,6 @@ h3 {
   margin: 0.3rem 0 1rem;
 }
 
-/* BEGIN cl-hero standard — managed, keep in sync across fleet */
 /* Colors mapped to this lab's tokens (--heading / --muted / --accent / --edge)
    so the hero passes axe contrast in both themes. Local --border/--text-dim
    aliases keep the rest of the block identical to the fleet source. */
@@ -286,8 +285,11 @@ h3 {
     flex-basis: auto;
     width: 100%;
   }
+  .cl-hero-main {
+    flex-basis: auto;
+    min-width: 0;
+  }
 }
-/* END cl-hero standard */
 
 /* Log-scale security-margin visual. Bar widths are proportional to the security
    exponent in bits (log2 of the work factor), so the picture agrees with the
@@ -452,6 +454,8 @@ button {
   font: 500 0.92rem var(--sans);
   cursor: pointer;
   transition: transform 140ms ease, border-color 140ms ease;
+  /* 44px floor so the control is a comfortable touch target on a phone. */
+  min-height: 44px;
 }
 
 button:hover {
