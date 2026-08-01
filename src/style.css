@@ -41,10 +41,14 @@
   --pre-ink: #dee8ff;
 
   --input-bg: rgba(8, 10, 20, 0.8);
-  --input-border: rgba(255, 255, 255, 0.18);
+  /* Control boundaries. Inputs are filled with --input-bg and buttons with the
+     --btn-grad wash; both land at 1.00-1.31:1 against the .card behind them, so
+     the border is the sole boundary and WCAG 2.1 SC 1.4.11 requires 3:1. These
+     alphas were 0.18/0.16 (~1.6-1.7:1). --grid is unchanged for card outlines. */
+  --input-border: rgba(255, 255, 255, 0.46);
   --btn-grad: linear-gradient(130deg, rgba(0, 212, 255, 0.16), rgba(157, 78, 221, 0.22));
   --btn-ink: #ffffff;
-  --btn-border: rgba(255, 255, 255, 0.16);
+  --btn-border: rgba(255, 255, 255, 0.46);
   --btn-border-hover: rgba(255, 255, 255, 0.45);
   --th-bg: rgba(0, 0, 0, 0.25);
 
@@ -91,10 +95,10 @@
   --pre-ink: #243352;
 
   --input-bg: #ffffff;
-  --input-border: rgba(20, 24, 60, 0.28);
+  --input-border: rgba(20, 24, 60, 0.55);
   --btn-grad: linear-gradient(130deg, rgba(0, 160, 210, 0.16), rgba(157, 78, 221, 0.2));
   --btn-ink: #14213a;
-  --btn-border: rgba(20, 24, 60, 0.18);
+  --btn-border: rgba(20, 24, 60, 0.55);
   --btn-border-hover: rgba(157, 78, 221, 0.75);
   --th-bg: rgba(157, 78, 221, 0.1);
 
