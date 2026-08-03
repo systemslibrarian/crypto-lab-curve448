@@ -739,6 +739,14 @@ document.querySelector<HTMLButtonElement>('#btn-ed-verify')?.addEventListener('c
     renderEdState('Sign a message first.', false);
     return;
   }
+  // Verify the message that is ON SCREEN, not the one captured at Sign time.
+  // The field stays editable, so reading `latestMessage` here meant typing a
+  // new message and pressing Verify still answered "✓ VALID" — a verdict about
+  // a message the page was no longer showing, which is precisely the claim this
+  // exhibit exists to disprove. Re-reading also keeps the tamper buttons honest:
+  // they write their flip back into the field, so the two stay in step.
+  const shown = document.querySelector<HTMLInputElement>('#ed-message')?.value ?? '';
+  latestMessage = encoder.encode(shown);
   const valid = verifyEd448(latestSignature, latestMessage, edState.publicKey, readContext());
   renderEdState(valid ? '✓ VALID signature' : '✗ INVALID signature', valid);
 });
@@ -808,7 +816,13 @@ renderEdState();
 
 // ---- Exhibit 3b: seed -> hash -> (scalar, nonce) ---------------------------
 
-function renderHashSplit(split: HashSplit): string {
+/**
+ * `seed` is the exact byte string that was hashed. It has to be passed in
+ * rather than read back off `edState`: the Ed25519 column hashes a 32-byte
+ * slice of the seed, so rendering the full 57-byte key there would print a
+ * value labelled "seed (32 B)" whose tail bytes were never hashed at all.
+ */
+function renderHashSplit(split: HashSplit, seed: Uint8Array): string {
   const lenNote = split.fixedOutput
     ? `fixed ${split.digestLen} bytes — this length is not adjustable`
     : `squeezed to ${split.digestLen} bytes — an XOF gives you any length you ask for`;
@@ -817,7 +831,7 @@ function renderHashSplit(split: HashSplit): string {
       <div class="hashcmp-head">${split.algo}
         <span class="hashcmp-len">${lenNote}</span>
       </div>
-      <p class="mono">seed (${split.seedLen} B): ${shortHex(edState.privateKey, 8)}</p>
+      <p class="mono">seed (${split.seedLen} B): ${shortHex(seed, 8)}</p>
       <p class="mono">scalar half (${split.scalarHalf.length} B): ${shortHex(split.scalarHalf, 8)}</p>
       <p class="mono">nonce prefix (${split.prefixHalf.length} B): ${shortHex(split.prefixHalf, 8)}</p>
     </div>`;
@@ -833,8 +847,8 @@ document.querySelector<HTMLButtonElement>('#btn-hashcmp')?.addEventListener('cli
   const sha = sha512Split(ed25519Seed);
   const shake = shake256Split(edState.privateKey, 114);
   out.innerHTML = `
-    ${renderHashSplit(sha)}
-    ${renderHashSplit(shake)}
+    ${renderHashSplit(sha, ed25519Seed)}
+    ${renderHashSplit(shake, edState.privateKey)}
     <p class="hashcmp-foot">Same idea, two hashes: split the digest into (secret scalar, nonce prefix). SHA-512's 64 bytes can't cover Ed448's 114-byte need — only the XOF stretches that far. These are real digests computed just now in your browser.</p>`;
 });
 
