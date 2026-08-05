@@ -1,61 +1,39 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { boot, scan } from './gate';
 
 /**
- * WCAG regression gate. Scans the full page in both themes with every
- * collapsible / animated region revealed. This lab has no <details>; its
- * sections use class-toggled `.panel.reveal` blocks that animate in from
- * opacity:0, so we neutralize the animations (and reveal any native
- * disclosure widgets, just in case) before scanning so nothing is measured
- * mid-transition.
+ * WCAG regression gate — first paint and focus states.
+ *
+ * The driven states (handshake, clamping, signature verdicts, disclosures,
+ * narrow viewports) live in a11y-dynamic.spec.ts. This file covers what the
+ * page looks like on arrival, in both themes, plus the two skip links, which
+ * are parked off-screen at `left: -9999px` until focus and are therefore only
+ * really rendered — and only really measurable — once focused.
  */
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations at first paint in ${theme} theme`, async ({ page }) => {
+    await boot(page, theme);
+    await scan(page, `${theme} first paint`);
+  });
 
-async function revealAll(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    // Expand any native disclosure widgets.
-    for (const details of document.querySelectorAll('details')) {
-      (details as HTMLDetailsElement).open = true;
-    }
-    // Neutralize the rise/fade animations and any transitions so panels are
-    // scanned in their settled, fully-opaque state (what a user sees once the
-    // animation completes) rather than mid-transition.
-    const style = document.createElement('style');
-    style.textContent =
-      '*, *::before, *::after { animation: none !important; transition: none !important; }' +
-      '.reveal, .panel { opacity: 1 !important; transform: none !important; }';
-    document.head.appendChild(style);
-    // Reveal any class-toggled or [hidden] panels/accordions so their content
-    // is scanned. (Interactive-only widgets such as copy buttons stay hidden.)
-    for (const panel of document.querySelectorAll('.panel, .accordion, .tab-panel')) {
-      panel.classList.add('open', 'active');
-      panel.removeAttribute('hidden');
-    }
+  test(`skip links are accessible when focused in ${theme} theme`, async ({ page }) => {
+    // 'stored' rather than 'toggle': this test asserts tab order from a
+    // pristine focus state, and clicking the theme button would leave it as the
+    // sequential focus navigation starting point.
+    await boot(page, theme, 'stored');
+
+    // The shared site header's skip link is the first focusable element.
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.cl-skip-link')).toBeFocused();
+    await scan(page, `${theme} site skip link focused`);
+
+    await page.locator('.skip-link').focus();
+    await expect(page.locator('.skip-link')).toBeFocused();
+    // Focused, it leaves its off-screen parking spot and becomes real content.
+    const box = await page.locator('.skip-link').boundingBox();
+    expect(box, 'the focused skip link must be on screen').not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    await scan(page, `${theme} in-page skip link focused`);
   });
 }
-
-async function scan(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    help: v.help,
-    nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-  }));
-  expect(summary).toEqual([]);
-}
-
-test('no WCAG A/AA violations in dark theme', async ({ page }) => {
-  await page.goto('.');
-  await revealAll(page);
-  await scan(page);
-});
-
-test('no WCAG A/AA violations in light theme', async ({ page }) => {
-  await page.goto('.');
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await revealAll(page);
-  await scan(page);
-});

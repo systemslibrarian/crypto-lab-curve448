@@ -11,6 +11,14 @@
 
   --curve25519: #00d4ff;
   --curve448: #9d4edd;
+  /* The two brand hues above are chosen to read as *fills* — the scale bars,
+     the G ring. As TEXT ink they do not clear WCAG 1.4.3: #9d4edd measured
+     3.50:1 on the hero panel and 4.20:1 on the card here in dark, and #00d4ff
+     fell to 1.44:1 in light. So text keeps a separate, per-theme ink token and
+     the raw hue is reserved for fills. Dark: cyan is already 9.11:1+ on every
+     surface it lands on, so only the violet needs lifting. */
+  --curve25519-ink: #00d4ff;
+  --curve448-ink: #c39bf5;
   --private: #ff5c84;
   --ok: #2bff9e;
   --bad: #ff5c84;
@@ -65,6 +73,12 @@
 }
 
 [data-theme='light'] {
+  /* Both brand hues are far too bright to be text on a light canvas — #00d4ff
+     measured 1.44:1 on the hero wash and 1.77:1 on a white card, #9d4edd 3.73:1
+     — so light gets darkened inks of the same hue. Fills keep the raw hues. */
+  --curve25519-ink: #04657d;
+  --curve448-ink: #6d28d9;
+
   --private: #c4123f;
   --ok: #0a7d49;
   --bad: #c4123f;
@@ -74,8 +88,11 @@
   --heading: #0d1626;
   --verse: #3a2d6b;
   /* Teal like the dark theme's #35d6bb, but dark enough for AA on the light
-     canvas (4.8:1+ against every --bg gradient stop; #35d6bb was ~1.7:1). */
-  --link: #0f766e;
+     canvas. #35d6bb was ~1.7:1; #0f766e cleared white but only reached 4.13:1
+     once the page background's violet radial stop (rgba(157,78,221,.16)) was
+     composited in, which is exactly where the footer links sit. #0b625c is
+     5.44:1 against that worst stop and 7.2:1 on a card. */
+  --link: #0b625c;
 
   --canvas: #f7f5fd;
   --bg:
@@ -327,11 +344,11 @@ h3 {
 }
 
 .security-scale-tier.c25519 {
-  color: var(--curve25519);
+  color: var(--curve25519-ink);
 }
 
 .security-scale-tier.c448 {
-  color: var(--curve448);
+  color: var(--curve448-ink);
 }
 
 .security-scale-track {
@@ -500,6 +517,13 @@ label {
 .secret {
   color: var(--private);
   font-family: var(--mono);
+  /* Masked, a secret is short; revealed, it is 112 unbroken hex characters with
+     no break opportunity in it. Without this the revealed scalar measured
+     1075px wide and dragged the whole document to 1739px at a 1280px viewport
+     and 1158px at 380px — horizontal scrolling of the entire page, which is a
+     WCAG 1.4.10 reflow failure. `.mono` already carried this; `.secret` did
+     not, and only the reveal states expose the difference. */
+  overflow-wrap: anywhere;
 }
 
 .mono {
@@ -531,6 +555,10 @@ label {
 .status {
   margin-top: 0.8rem;
   font-weight: 600;
+  /* "Compare Shared Secrets" prints the agreed secret inline — 112 unbroken hex
+     characters, which widened the document from 380px to 1070px. Same cause as
+     `.secret`: a hex run offers no break opportunity of its own. */
+  overflow-wrap: anywhere;
 }
 
 .status.ok {
@@ -630,7 +658,10 @@ abbr.gloss {
 
 .toy-g {
   fill: none;
-  stroke: var(--curve25519);
+  /* The ring marking the base point, and the "G" beside it, sit on the plot's
+     --input-bg — white in light theme, where the raw #00d4ff was 1.77:1. Both
+     are informative, so both take the ink token. */
+  stroke: var(--curve25519-ink);
   stroke-width: 2;
 }
 
@@ -649,7 +680,7 @@ abbr.gloss {
 
 .toy-label {
   font: 700 11px var(--mono);
-  fill: var(--curve25519);
+  fill: var(--curve25519-ink);
 }
 
 .toy-label.cur {
@@ -960,12 +991,12 @@ abbr.gloss {
 }
 
 .hl-a {
-  color: var(--curve25519);
+  color: var(--curve25519-ink);
   font-weight: 700;
 }
 
 .hl-b {
-  color: var(--curve448);
+  color: var(--curve448-ink);
   font-weight: 700;
 }
 
@@ -1378,5 +1409,15 @@ ul {
   *::after {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* `.reveal` starts at opacity 0 and is brought to 1 only by the `rise`
+     animation. Cancelling the animation above therefore left the hero and all
+     six exhibits permanently invisible — a reader who asks for less motion got
+     a blank page. Restore the animation's end state directly so the content is
+     simply *there*, with no motion at all. */
+  .reveal {
+    opacity: 1;
+    transform: none;
   }
 }
