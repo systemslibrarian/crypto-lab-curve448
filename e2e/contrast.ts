@@ -129,6 +129,23 @@ export async function auditContrast(page: Page): Promise<ContrastFailure[]> {
       const cs = getComputedStyle(el);
       if (cs.display === 'none' || cs.visibility === 'hidden') return false;
       if (parseFloat(cs.opacity) === 0) return false;
+      // A closed <details> hides its body with `content-visibility: hidden`
+      // rather than `display: none`, and Chromium keeps the last laid-out
+      // geometry for that subtree — so every test above passes for text that
+      // paints nothing. The stale rect is stale in the way that hurts most: it
+      // sits where the OPEN panel used to be, which on a narrow page can fall
+      // outside the collapsed panel's box entirely. The geometry-aware ancestor
+      // walk below then correctly finds no panel behind it and composites the
+      // text onto the page gradient, reporting a ratio nothing on screen has.
+      //
+      // Found in e91, where it produced a 3.86:1 for a collapsed disclosure's
+      // <code> at 380px. Ported back here because this helper is the model the
+      // sweep copies from, and the same misfire is latent in any lab whose
+      // <details> sits low enough on a narrow viewport.
+      //
+      // The open state is a real state; the gate scans it explicitly, and this
+      // same element is measured for real there.
+      if ((el as HTMLElement).checkVisibility?.() === false) return false;
       const r = el.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) return false;
       // Text parked off the left/top edge of the page paints no pixels. This is
