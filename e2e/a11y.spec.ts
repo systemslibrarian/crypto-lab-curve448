@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { boot, scan } from './gate';
+import { boot, expectBaselineNotStale, scan } from './gate';
 
 /**
  * WCAG regression gate — first paint and focus states.
@@ -15,6 +15,19 @@ for (const theme of ['dark', 'light'] as const) {
   test(`no WCAG A/AA violations at first paint in ${theme} theme`, async ({ page }) => {
     await boot(page, theme);
     await scan(page, `${theme} first paint`);
+
+    // The non-text baseline's third rule: a listed finding that no longer
+    // appears fails, so a fixed entry has to be deleted and the file can only
+    // shrink. `expectBaselineNotStale` was exported from `gate.ts` and never
+    // imported, so of the three rules `nontext-baseline.ts` advertises only the
+    // first two had ever run.
+    //
+    // It belongs here rather than in `a11y-dynamic.spec.ts`. `nonTextSeen` is
+    // module state, so a call only sees what its own test drove — and both
+    // baselined entries are the shared top bar, which is painted at first paint
+    // in both themes. This test is the one whose whole subject is that state,
+    // so it sees everything the baseline lists and needs nothing driven.
+    expectBaselineNotStale();
   });
 
   test(`skip links are accessible when focused in ${theme} theme`, async ({ page }) => {
