@@ -37,7 +37,7 @@ async function runHandshake(page: Page): Promise<void> {
   await settle(page);
 }
 
-for (const theme of ['dark', 'light'] as const) {
+for (const theme of ['dark'] as const) {
   for (const { label: width, size } of WIDTHS) {
     test(`X448 exhibit states — ${theme} @ ${width}`, async ({ page }) => {
       await page.setViewportSize(size);

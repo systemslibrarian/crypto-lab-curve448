@@ -11,7 +11,7 @@ import { boot, expectBaselineNotStale, scan } from './gate';
  * really rendered — and only really measurable — once focused.
  */
 
-for (const theme of ['dark', 'light'] as const) {
+for (const theme of ['dark'] as const) {
   test(`no WCAG A/AA violations at first paint in ${theme} theme`, async ({ page }) => {
     await boot(page, theme);
     await scan(page, `${theme} first paint`);

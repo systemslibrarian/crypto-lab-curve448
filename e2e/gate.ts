@@ -72,19 +72,13 @@ export async function boot(
   page: Page,
   theme: 'dark' | 'light',
   /**
-   * How the light theme is reached. 'toggle' clicks the header button, which is
-   * the interesting path because it fires the theme-swap transitions `settle`
-   * has to drain. 'stored' seeds localStorage so the theme is applied by the
-   * pre-paint inline script instead — needed by the tab-order test, because
-   * clicking the toggle leaves it as the sequential focus navigation starting
-   * point and Chromium keeps that even after `blur()`.
+   * Kept so callers that named a route to the theme still typecheck. Dark is
+   * the only theme now and the pre-paint inline script pins it, so there is no
+   * longer a toggle to click or a preference to seed.
    */
-  via: 'toggle' | 'stored' = 'toggle'
+  _via: 'toggle' | 'stored' = 'toggle'
 ): Promise<void> {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  if (theme === 'light' && via === 'stored') {
-    await page.addInitScript(() => localStorage.setItem('theme', 'light'));
-  }
   await page.goto('.');
   expect(
     await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches),
@@ -103,9 +97,6 @@ export async function boot(
   // `goto` resolves, but "always so far" is not an invariant worth trusting.
   await expect(page.locator('#compare-body tr')).not.toHaveCount(0);
 
-  if (theme === 'light' && via === 'toggle') {
-    await page.locator('#cl-theme-toggle').click();
-  }
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
   await settle(page);
 
