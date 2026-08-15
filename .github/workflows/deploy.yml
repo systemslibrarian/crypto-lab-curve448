@@ -27,6 +27,12 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      # The vitest suite: X448 and Ed448 against their published vectors,
+      # curve parameters, the hash demo and the UI wiring. Deploy previously
+      # ran only test:a11y, so none of it gated a publish — a build with
+      # broken curve arithmetic could ship as long as the page passed axe.
+      - name: Unit tests
+        run: npm test
       - name: Build
         run: npm run build
       - name: Install Playwright browser
