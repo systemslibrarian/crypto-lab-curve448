@@ -335,7 +335,7 @@ Binary shape:
         <article class="card">
           <h3>Real Deployments</h3>
           <ul>
-            <li>TLS 1.3 default: X25519, optional X448</li>
+            <li>TLS 1.3 (RFC 9846 §9.1): P-256 is mandatory to support; X25519 is recommended to support; X448 is optional</li>
             <li>SSH: Ed25519 is the OpenSSH default; <code>ssh-ed448</code> is standardized in RFC 8709 and shipped by PuTTY/WinSCP, but OpenSSH has not implemented it</li>
             <li>GnuPG long-term identity keys: Ed448</li>
           </ul>
