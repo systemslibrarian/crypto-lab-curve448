@@ -138,3 +138,36 @@ describe('demo UI', () => {
     expect(document.querySelector('#compare-body')?.textContent).toContain('SHAKE256');
   });
 });
+
+describe('a signing context is shown back as text, never as markup', () => {
+  // The two context labels are the evidence this exhibit rests on, and they are
+  // typed by the visitor. Before they were escaped, a context of
+  // `<img src=x data-injected=yes>` was parsed into the page as an element, and
+  // the label rendered empty -- so the payload also erased the thing on screen
+  // that proves the two contexts differ.
+  const PAYLOADS = [
+    '<img src=x data-injected=yes>',
+    '"><svg data-injected=yes>',
+    '</div><img data-injected=yes>',
+  ];
+
+  for (const payload of PAYLOADS) {
+    it(`keeps ${JSON.stringify(payload)} out of the DOM`, () => {
+      const a = document.querySelector<HTMLInputElement>('#ds-ctx-a');
+      const b = document.querySelector<HTMLInputElement>('#ds-ctx-b');
+      expect(a, '#ds-ctx-a').not.toBeNull();
+      expect(b, '#ds-ctx-b').not.toBeNull();
+      (a as HTMLInputElement).value = payload;
+      (b as HTMLInputElement).value = 'ctx-b';
+      document.querySelector<HTMLButtonElement>('#btn-domainsep')?.click();
+
+      expect(document.querySelectorAll('[data-injected]')).toHaveLength(0);
+      // And the label still shows what was typed, because this is escaping and
+      // not filtering -- an empty label here would mean the payload was parsed.
+      const labels = Array.from(document.querySelectorAll('.ds-ctx')).map(
+        (el) => el.textContent ?? '',
+      );
+      expect(labels[0]).toBe(`context = "${payload}"`);
+    });
+  }
+});

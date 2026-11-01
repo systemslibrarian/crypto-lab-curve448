@@ -854,6 +854,20 @@ document.querySelector<HTMLButtonElement>('#btn-hashcmp')?.addEventListener('cli
 
 // ---- Exhibit 3c: domain separation made visible ----------------------------
 
+// The two context labels are typed by the visitor and then shown back inside
+// this exhibit's markup, so they are escaped before they get there. Without it
+// a context of `<img src=x onerror=...>` is parsed as an element rather than
+// displayed as the string the visitor entered -- which also hides the thing the
+// exhibit is about, since the label is the evidence that the two contexts differ.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 document.querySelector<HTMLButtonElement>('#btn-domainsep')?.addEventListener('click', () => {
   const out = document.querySelector<HTMLDivElement>('#domainsep-out');
   if (!out) return;
@@ -886,17 +900,17 @@ document.querySelector<HTMLButtonElement>('#btn-domainsep')?.addEventListener('c
   out.innerHTML = `
     <div class="grid two">
       <div class="ds-card">
-        <div class="ds-ctx">context = "${ctxAStr}"</div>
+        <div class="ds-ctx">context = "${escapeHtml(ctxAStr)}"</div>
         <p class="mono">sig A: ${shortHex(sigA, 10)}</p>
       </div>
       <div class="ds-card">
-        <div class="ds-ctx">context = "${ctxBStr}"</div>
+        <div class="ds-ctx">context = "${escapeHtml(ctxBStr)}"</div>
         <p class="mono">sig B: ${shortHex(sigB, 10)}</p>
       </div>
     </div>
     <table class="ds-matrix">
       <caption class="sr-only">Cross-context verification matrix</caption>
-      <thead><tr><th scope="col">signature</th><th scope="col">under "${ctxAStr}"</th><th scope="col">under "${ctxBStr}"</th></tr></thead>
+      <thead><tr><th scope="col">signature</th><th scope="col">under "${escapeHtml(ctxAStr)}"</th><th scope="col">under "${escapeHtml(ctxBStr)}"</th></tr></thead>
       <tbody>
         <tr><td>sig A</td><td>${yn(aUnderA)}</td><td>${yn(aUnderB)}</td></tr>
         <tr><td>sig B</td><td>${yn(bUnderA)}</td><td>${yn(bUnderB)}</td></tr>
