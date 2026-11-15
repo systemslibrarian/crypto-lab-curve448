@@ -75,7 +75,7 @@ app.innerHTML = `
         </div>
         <aside class="cl-hero-why" aria-label="Why it matters">
           <span class="cl-hero-why-label">WHY IT MATTERS</span>
-          <p class="cl-hero-why-text">Curve448 is the 224-bit security tier — the higher-assurance ECC choice for long-lived keys and strict compliance. That margin isn't free: clamping, SHAKE256, and larger, slower keys are the price of trading Curve25519's speed for headroom.</p>
+          <p class="cl-hero-why-text">Curve448 is the 224-bit security tier — the higher-assurance ECC choice for long-lived keys. That margin isn't free: clamping, SHAKE256, and larger, slower keys are the price of trading Curve25519's speed for headroom.</p>
         </aside>
       </header>
       <div class="security-scale" role="group" aria-labelledby="sec-scale-label">
@@ -105,7 +105,7 @@ app.innerHTML = `
       <div class="grid two">
         <article class="card">
           <h3>Security Margin</h3>
-          <p>Curve25519 gives 128-bit classical security. Curve448 raises that to 224-bit for long-lived archives, compliance profiles, and larger safety margins.</p>
+          <p>Curve25519 gives 128-bit classical security. Curve448 raises that to 224-bit for long-lived archives and larger safety margins.</p>
           <pre>2^128 ≈ 3.4 × 10^38
 2^224 ≈ 2.7 × 10^67
 Difference: 2^96 harder</pre>
