@@ -114,8 +114,8 @@ Difference: 2^96 harder</pre>
           <h3>Goldilocks Prime</h3>
           <pre>p = 2^448 - 2^224 - 1
 
-Binary shape:
-[224 ones][gap][224 ones]</pre>
+Binary shape (448 bits, MSB first):
+[223 ones][one 0][224 ones]</pre>
           <p class="mono" id="prime-value"></p>
         </article>
       </div>
@@ -202,7 +202,7 @@ Binary shape:
 
       <article class="card clampbox" id="clampbox" hidden>
         <h3>What clamping actually does to the bits</h3>
-        <p class="clampbox-lead">RFC 7748 doesn't use your random 56 bytes as-is. It <strong>clamps</strong> two specific bits before the scalar is ever used. Here are the two bytes that change in Alice's scalar — each cell is one bit, low bit on the right.</p>
+        <p class="clampbox-lead">RFC 7748 doesn't use your random 56 bytes as-is. It <strong>clamps</strong> three specific bits, in two bytes, before the scalar is ever used: RFC 7748 says to "set the two least significant bits of the first byte to 0, and the most significant bit of the last byte to 1". Here are the two bytes that change in Alice's scalar — each cell is one bit, low bit on the right.</p>
         <div class="clampbox-rows">
           <div class="clampbox-row">
             <span class="clampbox-name">low byte (byte 0)</span>

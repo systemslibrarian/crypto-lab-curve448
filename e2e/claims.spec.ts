@@ -66,6 +66,32 @@ test('the Goldilocks prime shown is really 2^448 - 2^224 - 1', async ({ page }) 
   expect(rendered).toHaveLength(135);
 });
 
+test('the printed binary shape of the Goldilocks prime matches its real bit runs', async ({ page }) => {
+  await page.goto('.');
+  // The card used to draw p = 2^448 - 2^224 - 1 as "[224 ones][gap][224 ones]".
+  // Subtracting 2^224 from 2^448 - 1 clears exactly one bit, bit 224, so the
+  // run above it is 223 bits long, not 224, and the "gap" is a single zero.
+  const runs = await page.evaluate(() => {
+    const bits = (2n ** 448n - 2n ** 224n - 1n).toString(2);
+    const out: Array<[string, number]> = [];
+    for (const ch of bits) {
+      if (out.length && out[out.length - 1][0] === ch) out[out.length - 1][1] += 1;
+      else out.push([ch, 1]);
+    }
+    return { length: bits.length, runs: out };
+  });
+  expect(runs.length).toBe(448);
+  expect(runs.runs).toEqual([
+    ['1', 223],
+    ['0', 1],
+    ['1', 224],
+  ]);
+
+  const card = await page.locator('#exhibit-1 .card', { hasText: 'Goldilocks Prime' }).innerText();
+  expect(card).toContain('[223 ones][one 0][224 ones]');
+  expect(card).not.toContain('[224 ones][gap][224 ones]');
+});
+
 test('the log-scale work-factor bars agree with their own labels', async ({ page }) => {
   await page.goto('.');
   const rows = page.locator('.security-scale-row');
@@ -194,6 +220,15 @@ test('the clamping bit-grid matches the scalar actually in use', async ({ page }
   // RFC 7748 clamping, asserted on the real scalar rather than on the caption.
   expect(lowByte & 0b11).toBe(0);
   expect(highByte & 0b1000_0000).toBe(0b1000_0000);
+
+  // Three bits move, not two: RFC 7748 decodeScalar448 is k[0] &= 252 and
+  // k[55] |= 128. The lead used to say "clamps two specific bits", which
+  // contradicted the grid right beneath it (two cleared + one set).
+  const lead = await page.locator('.clampbox-lead').innerText();
+  expect(lead).toContain('three specific bits, in two bytes');
+  expect(lead).toContain('set the two least significant bits of the first byte to 0');
+  expect(lead).toContain('the most significant bit of the last byte to 1');
+  expect(lead).not.toContain('two specific bits before');
 
   // The grid animates from the pre-clamp bits; wait for the settled cells.
   await expect(page.locator('#bitgrid-low .bit.clamped')).toHaveCount(2);
