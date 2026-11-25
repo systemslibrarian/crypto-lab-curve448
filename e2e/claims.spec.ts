@@ -511,6 +511,78 @@ test('domain separation rejects exactly the off-diagonal, for contexts you choos
   expect(ctxLabels).toEqual(['context = "alpha-context"', 'context = "beta-context"']);
 });
 
+test('contexts preserve every UTF-8 byte and enforce the 255-byte limit', async ({ page }) => {
+  await page.goto('.');
+  const input = page.locator('#ed-context');
+  const status = page.locator('#ed-status');
+  const sign = page.locator('#btn-ed-sign');
+  const verify = page.locator('#btn-ed-verify');
+  await input.fill('reading');
+  await sign.click();
+  await verify.click();
+  await expect(status).toHaveText('✓ VALID signature');
+  await input.fill('reading ');
+  await expect(status).toContainText('Inputs changed');
+  await verify.click();
+  await expect(status).toHaveText('✗ INVALID signature');
+  await input.fill('reading');
+  await verify.click();
+  await expect(status).toHaveText('✓ VALID signature');
+
+  await input.fill('é'.repeat(127) + 'a');
+  await sign.click();
+  await verify.click();
+  await expect(status).toHaveText('✓ VALID signature');
+  await input.fill('é'.repeat(128));
+  for (const action of [sign, verify, page.locator('#btn-ed-tamper-sig'), page.locator('#btn-ed-tamper-msg')]) {
+    await action.click();
+    await expect(status).toContainText('256 UTF-8 bytes');
+    await expect(status).toContainText('up to 255');
+  }
+  await input.fill('é'.repeat(127) + 'a');
+  await verify.click();
+  await expect(status).toHaveText('✓ VALID signature');
+});
+
+test('the matrix describes equal contexts and clears when its inputs change', async ({ page }) => {
+  await page.goto('.');
+  const b = page.locator('#ds-ctx-b');
+  const run = page.locator('#btn-domainsep');
+  const out = page.locator('#domainsep-out');
+  await page.locator('#ds-ctx-a').fill('library');
+  await b.fill('library');
+  await run.click();
+  await expect(out.locator('.ds-ok')).toHaveCount(4);
+  await expect(out).toContainText('same signature');
+  await b.fill('library ');
+  await expect(out.locator('table')).toHaveCount(0);
+  await run.click();
+  await expect(out.locator('.ds-ok')).toHaveCount(2);
+  await expect(out.locator('.ds-bad')).toHaveCount(2);
+  await b.fill('é'.repeat(128));
+  await run.click();
+  await expect(out).toContainText('255 UTF-8 bytes');
+  await expect(out.locator('table')).toHaveCount(0);
+});
+
+test('the tamper controls verify the bytes they leave on screen', async ({ page }) => {
+  await page.goto('.');
+  const status = page.locator('#ed-status');
+  const msg = page.locator('#ed-message');
+  await msg.fill('');
+  await page.locator('#btn-ed-sign').click();
+  await page.locator('#btn-ed-tamper-msg').click();
+  await expect(msg).toHaveValue('!');
+  await expect(status).toContainText('INVALID');
+  await msg.fill('');
+  const flip = page.locator('#btn-ed-tamper-sig');
+  await flip.click();
+  await expect(status).toContainText('INVALID');
+  await flip.click();
+  await expect(status).toHaveClass(/\bok\b/);
+  await expect(status).toContainText('✓ VALID');
+});
+
 // ---- Exhibit 4: the comparison table ---------------------------------------
 
 test('the comparison table agrees with the live exhibits it summarizes', async ({ page }) => {

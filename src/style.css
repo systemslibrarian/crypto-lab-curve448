@@ -1113,6 +1113,7 @@ abbr.gloss {
   background: var(--surface-strong);
 }
 
+.ds-ctx, .ds-matrix thead th { white-space: pre-wrap; }
 .ds-ctx {
   font: 600 0.82rem var(--mono);
   color: var(--heading);

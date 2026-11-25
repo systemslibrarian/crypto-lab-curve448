@@ -693,15 +693,19 @@ wireDisclosure('btn-disclose-6');
 
 let edState = generateEd448KeyPair();
 let latestSignature: Uint8Array<ArrayBufferLike> = new Uint8Array(0);
-let latestMessage = encoder.encode('Paul Clark certified');
+const edMessage = document.querySelector<HTMLInputElement>('#ed-message')!;
+const edContext = document.querySelector<HTMLInputElement>('#ed-context')!;
+const MAX_CONTEXT_BYTES = 255; // RFC 8032 §5.2.6
 let revealEdPrivate = false;
 
-function readContext(): Uint8Array | undefined {
-  const context = (document.querySelector<HTMLInputElement>('#ed-context')?.value ?? '').trim();
-  return context.length > 0 ? encoder.encode(context) : undefined;
+function readContext(): Uint8Array | null {
+  const bytes = encoder.encode(edContext.value);
+  if (bytes.length <= MAX_CONTEXT_BYTES) return bytes;
+  renderEdState(`Context is ${bytes.length} UTF-8 bytes. Ed448 allows up to ${MAX_CONTEXT_BYTES}.`, false);
+  return null;
 }
 
-function renderEdState(statusText = 'Ready', ok = true): void {
+function renderEdState(statusText = 'Ready', ok: boolean | null = true): void {
   const priv = document.querySelector<HTMLSpanElement>('#ed-priv');
   const pub = document.querySelector<HTMLSpanElement>('#ed-pub');
   const sig = document.querySelector<HTMLSpanElement>('#ed-sig');
@@ -715,10 +719,16 @@ function renderEdState(statusText = 'Ready', ok = true): void {
   pub.textContent = shortHex(edState.publicKey);
   sig.textContent = hasSig ? shortHex(latestSignature, 20) : '(no signature yet)';
   status.textContent = statusText;
-  status.className = `status ${ok ? 'ok' : 'bad'}`;
+  status.className = ok === null ? 'status' : `status ${ok ? 'ok' : 'bad'}`;
 
   if (copyPub) copyPub.hidden = false;
   if (copySig) copySig.hidden = !hasSig;
+}
+
+for (const input of [edMessage, edContext]) {
+  input.addEventListener('input', () => {
+    if (latestSignature.length) renderEdState('Inputs changed. Verify the displayed message and context.', null);
+  });
 }
 
 document.querySelector<HTMLButtonElement>('#btn-ed-keygen')?.addEventListener('click', () => {
@@ -728,10 +738,11 @@ document.querySelector<HTMLButtonElement>('#btn-ed-keygen')?.addEventListener('c
 });
 
 document.querySelector<HTMLButtonElement>('#btn-ed-sign')?.addEventListener('click', () => {
-  const msgInput = document.querySelector<HTMLInputElement>('#ed-message')?.value ?? '';
-  latestMessage = encoder.encode(msgInput);
-  latestSignature = signEd448(latestMessage, edState.privateKey, readContext());
-  renderEdState(`Signed ${latestMessage.length} bytes. Signature is ${latestSignature.length} bytes.`, true);
+  const context = readContext();
+  if (!context) return;
+  const message = encoder.encode(edMessage.value);
+  latestSignature = signEd448(message, edState.privateKey, context);
+  renderEdState(`Signed ${message.length} bytes. Signature is ${latestSignature.length} bytes.`, true);
 });
 
 document.querySelector<HTMLButtonElement>('#btn-ed-verify')?.addEventListener('click', () => {
@@ -739,15 +750,9 @@ document.querySelector<HTMLButtonElement>('#btn-ed-verify')?.addEventListener('c
     renderEdState('Sign a message first.', false);
     return;
   }
-  // Verify the message that is ON SCREEN, not the one captured at Sign time.
-  // The field stays editable, so reading `latestMessage` here meant typing a
-  // new message and pressing Verify still answered "✓ VALID" — a verdict about
-  // a message the page was no longer showing, which is precisely the claim this
-  // exhibit exists to disprove. Re-reading also keeps the tamper buttons honest:
-  // they write their flip back into the field, so the two stay in step.
-  const shown = document.querySelector<HTMLInputElement>('#ed-message')?.value ?? '';
-  latestMessage = encoder.encode(shown);
-  const valid = verifyEd448(latestSignature, latestMessage, edState.publicKey, readContext());
+  const context = readContext();
+  if (!context) return;
+  const valid = verifyEd448(latestSignature, encoder.encode(edMessage.value), edState.publicKey, context);
   renderEdState(valid ? '✓ VALID signature' : '✗ INVALID signature', valid);
 });
 
@@ -760,21 +765,23 @@ document.querySelector<HTMLButtonElement>('#btn-ed-tamper-msg')?.addEventListene
     renderEdState('Sign a message first.', false);
     return;
   }
-  const msgInput = document.querySelector<HTMLInputElement>('#ed-message');
-  const tampered = new Uint8Array(latestMessage);
-  if (tampered.length > 0) tampered[0] ^= 0x01;
-  latestMessage = tampered; // persist the flip
-  if (msgInput) {
-    // Reflect the flip in the visible field: byte 0's low bit toggled.
-    msgInput.value = decoder.decode(latestMessage);
+  const context = readContext();
+  if (!context) return;
+  const original = edMessage.value;
+  const changed = encoder.encode(original);
+  let detail = 'message byte 0 flipped';
+  if (changed.length) {
+    changed[0] ^= 1;
+    edMessage.value = decoder.decode(changed);
   }
-  const valid = verifyEd448(latestSignature, latestMessage, edState.publicKey, readContext());
-  renderEdState(
-    valid
-      ? 'Unexpected valid result'
-      : '✗ INVALID: message byte 0 flipped and kept. Verify still fails — re-Sign or Reset to recover.',
-    false,
-  );
+  // A text input cannot display every byte string. In that case make a visible edit.
+  const shown = encoder.encode(edMessage.value);
+  if (!changed.length || shown.length !== changed.length || !shown.every((byte, i) => byte === changed[i])) {
+    edMessage.value = original + '!';
+    detail = 'appended ! to the message';
+  }
+  const valid = verifyEd448(latestSignature, encoder.encode(edMessage.value), edState.publicKey, context);
+  renderEdState(valid ? '✓ VALID signature for the restored message.' : `✗ INVALID: ${detail} and kept.`, valid);
 });
 
 document.querySelector<HTMLButtonElement>('#btn-ed-tamper-sig')?.addEventListener('click', () => {
@@ -782,20 +789,16 @@ document.querySelector<HTMLButtonElement>('#btn-ed-tamper-sig')?.addEventListene
     renderEdState('Sign a message first.', false);
     return;
   }
-  latestSignature = tamperSignature(latestSignature); // persist the flip
-  const valid = verifyEd448(latestSignature, latestMessage, edState.publicKey, readContext());
-  renderEdState(
-    valid
-      ? 'Unexpected valid result'
-      : '✗ INVALID: signature byte 0 flipped and kept. Verify still fails — re-Sign or Reset to recover.',
-    false,
-  );
+  const context = readContext();
+  if (!context) return;
+  latestSignature = tamperSignature(latestSignature);
+  const valid = verifyEd448(latestSignature, encoder.encode(edMessage.value), edState.publicKey, context);
+  renderEdState(valid ? '✓ VALID signature for the displayed message and context.' : '✗ INVALID: signature byte 0 flipped and kept.', valid);
 });
 
 document.querySelector<HTMLButtonElement>('#btn-ed-reset')?.addEventListener('click', () => {
-  const msgInput = document.querySelector<HTMLInputElement>('#ed-message');
-  if (msgInput) msgInput.value = 'Paul Clark certified';
-  latestMessage = encoder.encode(msgInput?.value ?? 'Paul Clark certified');
+  edMessage.value = 'Paul Clark certified';
+  edContext.value = '';
   latestSignature = new Uint8Array(0);
   renderEdState('Reset — message restored, signature cleared. Sign again to continue.', true);
 });
@@ -806,7 +809,8 @@ document.querySelector<HTMLButtonElement>('#btn-reveal-ed')?.addEventListener('c
   btn.textContent = revealEdPrivate ? 'Hide private seed' : 'Reveal private seed';
   btn.setAttribute('aria-pressed', String(revealEdPrivate));
   const statusEl = document.querySelector<HTMLParagraphElement>('#ed-status');
-  renderEdState(statusEl?.textContent ?? 'Ready', !statusEl?.classList.contains('bad'));
+  const verdict = statusEl?.classList.contains('bad') ? false : statusEl?.classList.contains('ok') ? true : null;
+  renderEdState(statusEl?.textContent ?? 'Ready', verdict);
 });
 
 wireCopy('copy-ed-pub', () => bytesToHex(edState.publicKey));
@@ -868,21 +872,32 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+for (const selector of ['#ds-ctx-a', '#ds-ctx-b', '#ds-msg']) {
+  document.querySelector(selector)?.addEventListener('input', () => {
+    const result = document.querySelector('#domainsep-out');
+    if (result?.textContent?.trim()) result.textContent = 'Inputs changed. Run the comparison again.';
+  });
+}
+
 document.querySelector<HTMLButtonElement>('#btn-domainsep')?.addEventListener('click', () => {
   const out = document.querySelector<HTMLDivElement>('#domainsep-out');
   if (!out) return;
-  const ctxAStr = (document.querySelector<HTMLInputElement>('#ds-ctx-a')?.value ?? '').trim();
-  const ctxBStr = (document.querySelector<HTMLInputElement>('#ds-ctx-b')?.value ?? '').trim();
+  const ctxAStr = document.querySelector<HTMLInputElement>('#ds-ctx-a')?.value ?? '';
+  const ctxBStr = document.querySelector<HTMLInputElement>('#ds-ctx-b')?.value ?? '';
   const msgStr = document.querySelector<HTMLInputElement>('#ds-msg')?.value ?? '';
   if (ctxAStr.length === 0 || ctxBStr.length === 0) {
     out.innerHTML = '<p class="status bad">Both contexts must be non-empty to compare.</p>';
     return;
   }
-  const kp = generateEd448KeyPair();
   const msg = encoder.encode(msgStr);
   const ctxA = encoder.encode(ctxAStr);
   const ctxB = encoder.encode(ctxBStr);
+  if (ctxA.length > MAX_CONTEXT_BYTES || ctxB.length > MAX_CONTEXT_BYTES) {
+    out.textContent = `Each Ed448 context may contain up to ${MAX_CONTEXT_BYTES} UTF-8 bytes. A has ${ctxA.length} and B has ${ctxB.length}.`;
+    return;
+  }
 
+  const kp = generateEd448KeyPair();
   const sigA = signEd448(msg, kp.privateKey, ctxA);
   const sigB = signEd448(msg, kp.privateKey, ctxB);
 
@@ -892,6 +907,15 @@ document.querySelector<HTMLButtonElement>('#btn-domainsep')?.addEventListener('c
   const aUnderB = verifyEd448(sigA, msg, kp.publicKey, ctxB); // should fail
   const bUnderA = verifyEd448(sigB, msg, kp.publicKey, ctxA); // should fail
 
+  const sameContext = ctxA.length === ctxB.length && ctxA.every((byte, i) => byte === ctxB[i]);
+  let conclusion = 'The verification results differ from the expected pattern. Inspect the four checks above.';
+  if (aUnderA && bUnderB) {
+    if (sameContext && aUnderB && bUnderA) {
+      conclusion = 'The context bytes are identical. Deterministic Ed448 produces the same signature, and all four checks verify.';
+    } else if (!sameContext && !aUnderB && !bUnderA) {
+      conclusion = 'Same message and key, two distinct valid signatures. Each verifies under its own context. Both cross-context checks were rejected.';
+    }
+  }
   const yn = (ok: boolean): string =>
     ok
       ? '<span class="ds-ok">✓ verifies</span>'
@@ -916,7 +940,7 @@ document.querySelector<HTMLButtonElement>('#btn-domainsep')?.addEventListener('c
         <tr><td>sig B</td><td>${yn(bUnderA)}</td><td>${yn(bUnderB)}</td></tr>
       </tbody>
     </table>
-    <p class="ds-foot">Same message, same key, two contexts — two distinct valid signatures. Each verifies under its own context and is <strong>rejected</strong> under the other. That off-diagonal rejection is domain separation doing its job.</p>`;
+    <p class="ds-foot">${conclusion}</p>`;
 });
 
 // ---- Exhibit 4: live comparison --------------------------------------------
