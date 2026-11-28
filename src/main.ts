@@ -79,7 +79,7 @@ app.innerHTML = `
         </aside>
       </header>
       <div class="security-scale" role="group" aria-labelledby="sec-scale-label">
-        <p id="sec-scale-label" class="security-scale-label">Attack work factor — <strong>log scale</strong>, one step = one decimal order of magnitude (10×). A linear bar would put these two tiers a hair apart; the truth is 2<sup>96</sup> ≈ 10<sup>29</sup> steps.</p>
+        <p id="sec-scale-label" class="security-scale-label">Rounded classical security tiers on a <strong>log scale</strong>. One step represents a factor of ten in nominal work.</p>
         <div class="security-scale-row">
           <span class="security-scale-tier c25519">Curve25519</span>
           <div class="security-scale-track" aria-hidden="true">
@@ -96,7 +96,7 @@ app.innerHTML = `
           </div>
           <span class="security-scale-work">2<sup>224</sup> ≈ 10<sup>67.4</sup></span>
         </div>
-        <p class="security-scale-anchor">If breaking 2<sup>128</sup> took the entire age of the universe (~14 billion years), breaking 2<sup>224</sup> would take that long <strong>about 10<sup>28</sup> times over</strong>. The gap isn't "1.75× stronger" — it's 2<sup>96</sup> (≈ 8 × 10<sup>28</sup>) times more work.</p>
+        <p class="security-scale-anchor">Dividing the two nominal work factors gives 2<sup>96</sup> (≈ 8 × 10<sup>28</sup>). This ratio follows from the rounded tier labels. Actual cost depends on the algorithm, hardware and how work is counted.</p>
       </div>
     </div>
 
@@ -108,7 +108,7 @@ app.innerHTML = `
           <p>Curve25519 gives 128-bit classical security. Curve448 raises that to 224-bit for long-lived archives and larger safety margins.</p>
           <pre>2^128 ≈ 3.4 × 10^38
 2^224 ≈ 2.7 × 10^67
-Difference: 2^96 harder</pre>
+Ratio of nominal work factors: 2^96</pre>
         </article>
         <article class="card">
           <h3>Goldilocks Prime</h3>
@@ -215,7 +215,7 @@ Binary shape (448 bits, MSB first):
             <span class="clampbox-effect">top bit → <strong>1</strong></span>
           </div>
         </div>
-        <p class="clampbox-caption" id="clampbox-caption">Clearing the two low bits forces the scalar to a multiple of the cofactor (4), pinning it into the prime-order subgroup; setting the top bit fixes the scalar's length so timing can't leak it. Both are why an attacker can't nudge you off the safe curve.</p>
+        <p class="clampbox-caption" id="clampbox-caption">Clearing the two low bits makes the X448 scalar a multiple of four. Setting its top bit fixes its bit length at 448. These RFC 7748 decoding rules do not establish constant-time execution in JavaScript.</p>
       </article>
 
       <p id="dh-status" class="status" role="status" aria-live="polite"></p>

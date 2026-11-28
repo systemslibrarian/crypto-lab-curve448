@@ -128,13 +128,12 @@ test('the log-scale work-factor bars agree with their own labels', async ({ page
   expect(Math.abs(rulerWeak - rulerStrong)).toBeLessThan(0.01);
   expect(strong.width).toBeGreaterThan(weak.width);
 
-  // The headline gap: the prose claims 2^96, which must be the real difference.
-  // Anchored to the "it's 2^96 (~ 8 x 10^28)" clause specifically: the same
-  // paragraph also mentions 2^128 and 10^28 in other roles.
+  // Compare the exponent difference with the ratio of the rounded tier labels.
   const anchor = (await page.locator('.security-scale-anchor').innerHTML()).replace(/\s+/g, ' ');
-  const gap = /it's 2<sup>(\d+)<\/sup> \(. (\d+) . 10<sup>(\d+)<\/sup>\)/.exec(anchor);
-  expect(gap, `expected the "it's 2^N (~ M x 10^E)" gap clause in: ${anchor}`).not.toBeNull();
+  const gap = /gives 2<sup>(\d+)<\/sup> \(. (\d+) . 10<sup>(\d+)<\/sup>\)/.exec(anchor);
+  expect(gap, `expected the nominal ratio in: ${anchor}`).not.toBeNull();
   const [, gapBits, gapMantissa, gapExp] = (gap as RegExpExecArray).map(Number);
+  expect(anchor).toContain('rounded tier labels');
   expect(gapBits).toBe(strong.bits - weak.bits);
   expect(Math.round(2 ** gapBits / 10 ** gapExp)).toBe(gapMantissa);
 });
@@ -224,6 +223,8 @@ test('the clamping bit-grid matches the scalar actually in use', async ({ page }
   // Three bits move, not two: RFC 7748 decodeScalar448 is k[0] &= 252 and
   // k[55] |= 128. The lead used to say "clamps two specific bits", which
   // contradicted the grid right beneath it (two cleared + one set).
+  await expect(page.locator('#clampbox-caption')).toContainText('multiple of four');
+  await expect(page.locator('#clampbox-caption')).toContainText('do not establish constant-time execution');
   const lead = await page.locator('.clampbox-lead').innerText();
   expect(lead).toContain('three specific bits, in two bytes');
   expect(lead).toContain('set the two least significant bits of the first byte to 0');
